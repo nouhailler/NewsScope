@@ -17,6 +17,16 @@ export default defineConfig(() => {
       hmr: process.env.DISABLE_HMR !== 'true',
       // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
+      proxy: {
+        '/api/gdelt': {
+          target: 'https://api.gdeltproject.org/api/v2/doc/doc',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api\/gdelt/, ''),
+          headers: {
+            'User-Agent': 'NewsScope/1.4.2 (GDELT-Proxy)',
+          },
+        },
+      },
     },
   };
 });

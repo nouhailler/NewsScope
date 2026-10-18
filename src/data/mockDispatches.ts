@@ -1,10 +1,21 @@
+/**
+ * DONNÉES DE DÉMONSTRATION FICTIVES — MOCK DATASET
+ * 
+ * ⚠️ AVERTISSEMENT DE CONFORMITÉ & AUDIT :
+ * Ces dépêches sont des données synthétiques locales créées à des fins de test,
+ * de maquettage UI et de résilience hors-ligne.
+ * ELLES NE DOIVENT EN AUCUN CAS ÊTRE PRÉSENTÉES COMME DES DÉPÊCHES RÉCUPÉRÉES EN DIRECT DEPUIS UNE API.
+ * Elles sont identifiées par le fanion `isMock: true` dans toute l'application.
+ */
+
 import { Dispatch } from '../types';
 
 export const INITIAL_DISPATCHES: Dispatch[] = [
   {
     id: 'doc_reuters_88c2f1',
+    isMock: true,
     agency: 'reuters',
-    agencyLabel: 'REUTERS',
+    agencyLabel: 'REUTERS (DÉMO)',
     agencyClass: 'bg-secondary-container/20 text-secondary',
     isCanonical: true,
     isVerified: true,
@@ -43,8 +54,9 @@ export const INITIAL_DISPATCHES: Dispatch[] = [
   },
   {
     id: 'doc_bloomberg_32d90a',
+    isMock: true,
     agency: 'bloomberg',
-    agencyLabel: 'BLOOMBERG',
+    agencyLabel: 'BLOOMBERG (DÉMO)',
     agencyClass: 'bg-tertiary-container/20 text-tertiary',
     isCanonical: true,
     isVerified: true,
@@ -85,8 +97,9 @@ export const INITIAL_DISPATCHES: Dispatch[] = [
   },
   {
     id: 'doc_afp_1033',
+    isMock: true,
     agency: 'afp',
-    agencyLabel: 'AFP',
+    agencyLabel: 'AFP (DÉMO)',
     agencyClass: 'bg-primary-container/20 text-primary',
     isCanonical: true,
     isVerified: true,
@@ -124,8 +137,9 @@ export const INITIAL_DISPATCHES: Dispatch[] = [
   },
   {
     id: 'doc_reuters_9402',
+    isMock: true,
     agency: 'reuters',
-    agencyLabel: 'REUTERS',
+    agencyLabel: 'REUTERS (DÉMO)',
     agencyClass: 'bg-secondary-container/20 text-secondary',
     isCanonical: true,
     isVerified: true,
@@ -161,8 +175,9 @@ export const INITIAL_DISPATCHES: Dispatch[] = [
   },
   {
     id: 'doc_bloomberg_4419',
+    isMock: true,
     agency: 'bloomberg',
-    agencyLabel: 'BLOOMBERG',
+    agencyLabel: 'BLOOMBERG (DÉMO)',
     agencyClass: 'bg-tertiary-container/20 text-tertiary',
     isCanonical: true,
     isVerified: true,
@@ -197,8 +212,9 @@ export const INITIAL_DISPATCHES: Dispatch[] = [
   },
   {
     id: 'doc_afp_biodiv',
+    isMock: true,
     agency: 'afp',
-    agencyLabel: 'AFP',
+    agencyLabel: 'AFP (DÉMO)',
     agencyClass: 'bg-primary-container/20 text-primary',
     isCanonical: true,
     isVerified: true,
@@ -227,8 +243,9 @@ export const INITIAL_DISPATCHES: Dispatch[] = [
   },
   {
     id: 'doc_afp_mention_tierce',
+    isMock: true,
     agency: 'afp',
-    agencyLabel: 'Mention AFP',
+    agencyLabel: 'Mention AFP (DÉMO)',
     agencyClass: 'bg-secondary-container/20 text-secondary',
     isCanonical: false,
     isVerified: false,
@@ -259,8 +276,9 @@ export const INITIAL_DISPATCHES: Dispatch[] = [
   },
   {
     id: 'doc_reuters_asml',
+    isMock: true,
     agency: 'reuters',
-    agencyLabel: 'REUTERS',
+    agencyLabel: 'REUTERS (DÉMO)',
     agencyClass: 'bg-secondary-container/20 text-secondary',
     isCanonical: true,
     isVerified: true,
@@ -289,8 +307,9 @@ export const INITIAL_DISPATCHES: Dispatch[] = [
   },
   {
     id: 'doc_aie_energy',
+    isMock: true,
     agency: 'aie',
-    agencyLabel: 'AIE WIRE',
+    agencyLabel: 'AIE WIRE (DÉMO)',
     agencyClass: 'bg-surface-container-high text-on-surface-variant',
     isCanonical: true,
     isVerified: true,
@@ -326,8 +345,9 @@ export const INITIAL_DISPATCHES: Dispatch[] = [
   },
   {
     id: 'doc_reuters_mer_rouge',
+    isMock: true,
     agency: 'reuters',
-    agencyLabel: 'REUTERS',
+    agencyLabel: 'REUTERS (DÉMO)',
     agencyClass: 'bg-secondary-container/20 text-secondary',
     isCanonical: true,
     isVerified: true,
@@ -356,8 +376,9 @@ export const INITIAL_DISPATCHES: Dispatch[] = [
   },
   {
     id: 'doc_bloomberg_taiwan',
+    isMock: true,
     agency: 'bloomberg',
-    agencyLabel: 'BLOOMBERG',
+    agencyLabel: 'BLOOMBERG (DÉMO)',
     agencyClass: 'bg-tertiary-container/20 text-tertiary',
     isCanonical: true,
     isVerified: true,
@@ -386,8 +407,9 @@ export const INITIAL_DISPATCHES: Dispatch[] = [
   },
   {
     id: 'doc_reuters_defense_eu',
+    isMock: true,
     agency: 'reuters',
-    agencyLabel: 'REUTERS',
+    agencyLabel: 'REUTERS (DÉMO)',
     agencyClass: 'bg-secondary-container/20 text-secondary',
     isCanonical: true,
     isVerified: true,
@@ -416,8 +438,9 @@ export const INITIAL_DISPATCHES: Dispatch[] = [
   },
   {
     id: 'doc_bloomberg_bonds',
+    isMock: true,
     agency: 'bloomberg',
-    agencyLabel: 'BLOOMBERG',
+    agencyLabel: 'BLOOMBERG (DÉMO)',
     agencyClass: 'bg-tertiary-container/20 text-tertiary',
     isCanonical: true,
     isVerified: true,
@@ -446,8 +469,9 @@ export const INITIAL_DISPATCHES: Dispatch[] = [
   },
   {
     id: 'doc_afp_ia_regulation',
+    isMock: true,
     agency: 'afp',
-    agencyLabel: 'AFP',
+    agencyLabel: 'AFP (DÉMO)',
     agencyClass: 'bg-primary-container/20 text-primary',
     isCanonical: true,
     isVerified: true,

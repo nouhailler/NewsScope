@@ -2,6 +2,7 @@ export type AgencyId = 'reuters' | 'bloomberg' | 'afp' | 'aie';
 
 export interface Dispatch {
   id: string;
+  isMock: boolean;
   agency: AgencyId;
   agencyLabel: string;
   agencyClass: string;
@@ -44,6 +45,17 @@ export interface Dispatch {
     isPositive: boolean;
   };
   hasSparkline?: boolean;
+}
+
+export type DataSourceMode = 'live' | 'demo';
+
+export interface LiveFetchState {
+  isLoading: boolean;
+  lastFetchTime: Date | null;
+  lastResponseStatus: number | null;
+  lastResponseTimeMs: number | null;
+  lastError: string | null;
+  cooldownUntil: number | null; // Timestamp for 5s rate limit
 }
 
 export type ActiveTab = 'flux-direct' | 'favoris' | 'filtres' | 'a-propos' | 'detail';

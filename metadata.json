@@ -1,0 +1,6 @@
+{
+  "name": "NewsScope Wire",
+  "description": "Terminal de téléscripteur géopolitique et financier en direct (GDELT DOC 2.0, Reuters, Bloomberg, AFP) avec cache souverain IndexedDB et résilience PWA.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

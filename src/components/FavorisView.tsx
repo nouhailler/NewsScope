@@ -4,6 +4,7 @@ import {
   calculateStorageSize,
   exportFavoritesAsJson,
 } from '../utils/storage';
+import { FreshnessBanner } from './FreshnessBanner';
 
 interface FavorisViewProps {
   allDispatches: Dispatch[];
@@ -120,10 +121,10 @@ export const FavorisView: React.FC<FavorisViewProps> = ({
           <div className="flex items-center justify-between pt-1 text-[#bdc8d1] text-xs">
             <div className="flex items-center gap-1.5 font-mono text-[11px]">
               <span className="material-symbols-outlined text-[14px]">sync</span>
-              <span>Dernière synchro : Aujourd'hui à 11:24</span>
+              <span>Partition locale isolée (0 cookie)</span>
             </div>
             <span className="font-mono text-[11px] text-emerald-400 font-medium">
-              Cryptage local SHA-256
+              Stockage IndexedDB Souverain
             </span>
           </div>
         </div>
@@ -383,6 +384,15 @@ export const FavorisView: React.FC<FavorisViewProps> = ({
                 </span>
               </div>
 
+              {/* Day, Hour & Freshness Status Indicator */}
+              <div className="pl-2 mb-1.5">
+                <FreshnessBanner
+                  timestamp={dispatch.timestamp}
+                  isMock={dispatch.isMock}
+                  size="normal"
+                />
+              </div>
+
               {/* Title */}
               <h2
                 onClick={() => onSelectDispatch(dispatch.id)}
@@ -415,7 +425,7 @@ export const FavorisView: React.FC<FavorisViewProps> = ({
                     <span className="truncate">Clé : {dispatch.id}</span>
                   </div>
                   <span className="text-emerald-400 whitespace-nowrap text-[10px] font-medium">
-                    Empreinte SHA-256 • 100% Hors-ligne
+                    Contrôle d'intégrité • Cache IndexedDB
                   </span>
                 </div>
               )}

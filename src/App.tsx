@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
-import { ActiveTab, Dispatch, FilterState } from './types';
+import React, { useState, useEffect, useCallback } from 'react';
+import { ActiveTab, Dispatch, FilterState, DataSourceMode, LiveFetchState } from './types';
 import { INITIAL_DISPATCHES } from './data/mockDispatches';
 import {
   getStoredFavorites,
@@ -12,7 +12,14 @@ import {
   toggleFavoriteId,
   getOfflineMode,
   setOfflineMode,
+  getDataMode,
+  setDataMode,
 } from './utils/storage';
+import {
+  getAllIndexedDBFavorites,
+  getDispatchFromIndexedDB,
+} from './utils/indexedDB';
+import { fetchLiveGdeltDispatches } from './services/gdeltService';
 import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
 import { FluxDirectView } from './components/FluxDirectView';
@@ -29,7 +36,19 @@ export default function App() {
   const [selectedDispatchId, setSelectedDispatchId] = useState<string>('doc_reuters_88c2f1');
   const [favorites, setFavorites] = useState<string[]>(getStoredFavorites());
   const [isOffline, setIsOfflineState] = useState<boolean>(getOfflineMode());
+  const [dataMode, setDataModeState] = useState<DataSourceMode>(getDataMode());
+  const [liveDispatches, setLiveDispatches] = useState<Dispatch[]>([]);
+  const [cachedDispatches, setCachedDispatches] = useState<Dispatch[]>([]);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [liveState, setLiveState] = useState<LiveFetchState>({
+    isLoading: false,
+    lastFetchTime: null,
+    lastResponseStatus: null,
+    lastResponseTimeMs: null,
+    lastError: null,
+    cooldownUntil: null,
+  });
+
   const [activeModal, setActiveModal] = useState<
     'json-inspector' | 'network-diagnostic' | 'audit' | null
   >(null);
@@ -43,14 +62,89 @@ export default function App() {
     startDate: '2025-03-26 00:00',
     endDate: '2025-03-27 15:42',
     language: 'FR',
-    batchLimit: 50,
+    batchLimit: 25,
     activeTopics: ['Banques Centrales & Taux', 'Tech & IA'],
     urlSanitization: true,
   });
 
-  // Keep state synced with localStorage
+  // Load IndexedDB favorites on mount
+  useEffect(() => {
+    getAllIndexedDBFavorites().then(async (idbFavorites) => {
+      if (idbFavorites.length > 0) {
+        setFavorites(idbFavorites);
+        saveStoredFavorites(idbFavorites);
+
+        // Preload any cached dispatches for offline mode
+        const loaded: Dispatch[] = [];
+        for (const id of idbFavorites) {
+          const item = await getDispatchFromIndexedDB(id);
+          if (item) loaded.push(item);
+        }
+        if (loaded.length > 0) {
+          setCachedDispatches(loaded);
+        }
+      }
+    }).catch(console.warn);
+  }, []);
+
+  // Real fetch from GDELT DOC 2.0
+  const executeLiveFetch = useCallback(async (activeFilters: FilterState) => {
+    if (isOffline) {
+      setLiveState((prev) => ({
+        ...prev,
+        lastError: 'Mode hors-ligne actif. Interrogation réseau suspendue.',
+      }));
+      return;
+    }
+
+    setIsRefreshing(true);
+    setLiveState((prev) => ({
+      ...prev,
+      isLoading: true,
+      lastError: null,
+    }));
+
+    try {
+      const res = await fetchLiveGdeltDispatches(activeFilters);
+      setLiveState({
+        isLoading: false,
+        lastFetchTime: new Date(),
+        lastResponseStatus: res.httpStatus,
+        lastResponseTimeMs: res.latencyMs,
+        lastError: res.error,
+        rateLimited: res.rateLimited,
+        cooldownUntil: res.rateLimited ? Date.now() + 5000 : null,
+      });
+
+      if (res.success && res.dispatches.length > 0) {
+        setLiveDispatches(res.dispatches);
+        if (res.dispatches[0]) {
+          setSelectedDispatchId(res.dispatches[0].id);
+        }
+      }
+    } catch (err: any) {
+      setLiveState((prev) => ({
+        ...prev,
+        isLoading: false,
+        lastError: err.message || 'Erreur inattendue lors de la requête GDELT',
+      }));
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [isOffline]);
+
+  // Initial fetch if in live mode on mount
+  useEffect(() => {
+    if (dataMode === 'live' && !isOffline) {
+      executeLiveFetch(filters);
+    }
+  }, [dataMode, isOffline, executeLiveFetch, filters]);
+
+  // Favorite toggle synced with IndexedDB
   const handleToggleFavorite = (id: string) => {
-    const updated = toggleFavoriteId(id);
+    const allKnown = [...liveDispatches, ...INITIAL_DISPATCHES, ...cachedDispatches];
+    const target = allKnown.find((d) => d.id === id);
+    const updated = toggleFavoriteId(id, target);
     setFavorites([...updated]);
   };
 
@@ -65,11 +159,25 @@ export default function App() {
     setOfflineMode(next);
   };
 
+  const handleToggleDataMode = () => {
+    const next: DataSourceMode = dataMode === 'live' ? 'demo' : 'live';
+    setDataModeState(next);
+    setDataMode(next);
+    if (next === 'live' && liveDispatches.length === 0 && !isOffline) {
+      executeLiveFetch(filters);
+    }
+  };
+
   const handleRefresh = () => {
-    setIsRefreshing(true);
-    setTimeout(() => {
-      setIsRefreshing(false);
-    }, 850);
+    if (dataMode === 'live') {
+      executeLiveFetch(filters);
+    } else {
+      // Refreshing synthetic data
+      setIsRefreshing(true);
+      setTimeout(() => {
+        setIsRefreshing(false);
+      }, 400);
+    }
   };
 
   const handleSelectDispatch = (id: string) => {
@@ -77,6 +185,37 @@ export default function App() {
     setActiveTab('detail');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  // Determine which dispatches to feed the views
+  const activeDispatches: Dispatch[] = React.useMemo(() => {
+    if (isOffline) {
+      // In offline mode: prefer locally cached dispatches
+      if (cachedDispatches.length > 0) return cachedDispatches;
+      return INITIAL_DISPATCHES;
+    }
+    if (dataMode === 'live') {
+      // If live has returned articles, use them. If still loading and empty, fallback gracefully.
+      if (liveDispatches.length > 0) return liveDispatches;
+      return INITIAL_DISPATCHES;
+    }
+    return INITIAL_DISPATCHES;
+  }, [isOffline, dataMode, liveDispatches, cachedDispatches]);
+
+  // Current selected dispatch for detail view
+  const currentDispatch =
+    activeDispatches.find((d) => d.id === selectedDispatchId) ||
+    INITIAL_DISPATCHES.find((d) => d.id === selectedDispatchId) ||
+    activeDispatches[0] ||
+    INITIAL_DISPATCHES[0];
+
+  // Combined dispatches pool for favoris view
+  const allDispatchesPool = React.useMemo(() => {
+    const map = new Map<string, Dispatch>();
+    INITIAL_DISPATCHES.forEach((d) => map.set(d.id, d));
+    cachedDispatches.forEach((d) => map.set(d.id, d));
+    liveDispatches.forEach((d) => map.set(d.id, d));
+    return Array.from(map.values());
+  }, [liveDispatches, cachedDispatches]);
 
   // Keyboard shortcut support (ESC closes modal)
   useEffect(() => {
@@ -93,9 +232,6 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [activeModal, activeTab]);
 
-  const currentDispatch =
-    INITIAL_DISPATCHES.find((d) => d.id === selectedDispatchId) || INITIAL_DISPATCHES[0];
-
   return (
     <div className="min-h-screen bg-[#0b1326] text-[#dae2fd] font-['Source_Serif_4'] flex flex-col selection:bg-[#38bdf8] selection:text-[#004965]">
       {/* Fixed Application Header */}
@@ -111,13 +247,16 @@ export default function App() {
         onRefresh={handleRefresh}
         isRefreshing={isRefreshing}
         onOpenDiagnostic={() => setActiveModal('network-diagnostic')}
+        dataMode={dataMode}
+        onToggleDataMode={handleToggleDataMode}
+        liveState={liveState}
       />
 
       {/* Main Content Viewport */}
       <main className="flex-1 w-full pt-28 pb-16 min-h-screen">
         {activeTab === 'flux-direct' && (
           <FluxDirectView
-            dispatches={INITIAL_DISPATCHES}
+            dispatches={activeDispatches}
             favorites={favorites}
             onToggleFavorite={handleToggleFavorite}
             onSelectDispatch={handleSelectDispatch}
@@ -125,6 +264,9 @@ export default function App() {
             isOffline={isOffline}
             onRefresh={handleRefresh}
             isRefreshing={isRefreshing}
+            dataMode={dataMode}
+            onToggleDataMode={handleToggleDataMode}
+            liveState={liveState}
           />
         )}
 
@@ -141,7 +283,7 @@ export default function App() {
 
         {activeTab === 'favoris' && (
           <FavorisView
-            allDispatches={INITIAL_DISPATCHES}
+            allDispatches={allDispatchesPool}
             favoriteIds={favorites}
             onToggleFavorite={handleToggleFavorite}
             onSelectDispatch={handleSelectDispatch}
@@ -153,8 +295,16 @@ export default function App() {
         {activeTab === 'filtres' && (
           <FiltresView
             filters={filters}
-            onUpdateFilters={setFilters}
+            onUpdateFilters={(updated) => {
+              setFilters(updated);
+              if (dataMode === 'live' && !isOffline) {
+                executeLiveFetch(updated);
+              }
+            }}
             onApply={() => {
+              if (dataMode === 'live' && !isOffline) {
+                executeLiveFetch(filters);
+              }
               setActiveTab('flux-direct');
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}

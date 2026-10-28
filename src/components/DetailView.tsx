@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Dispatch } from '../types';
+import { FreshnessBanner } from './FreshnessBanner';
 
 interface DetailViewProps {
   dispatch: Dispatch;
@@ -208,10 +209,17 @@ export const DetailView: React.FC<DetailViewProps> = ({
           </div>
 
           <div className="font-mono text-xs text-[#bdc8d1] flex items-center gap-1">
-            <span className="material-symbols-outlined text-[14px]">schedule</span>
+            <span className="material-symbols-outlined text-[14px]">history</span>
             <span>{dispatch.utcTime}</span>
           </div>
         </div>
+
+        {/* Prominent Day, Hour & Freshness Status */}
+        <FreshnessBanner
+          timestamp={dispatch.timestamp}
+          isMock={dispatch.isMock}
+          size="detailed"
+        />
 
         {/* Cryptographic Hash Bar */}
         <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 rounded bg-[#060e20] font-mono text-[11px] text-[#bdc8d1] border border-[#222a3d]">

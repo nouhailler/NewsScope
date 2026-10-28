@@ -55,6 +55,7 @@ export interface LiveFetchState {
   lastResponseStatus: number | null;
   lastResponseTimeMs: number | null;
   lastError: string | null;
+  rateLimited?: boolean;
   cooldownUntil: number | null; // Timestamp for 5s rate limit
 }
 

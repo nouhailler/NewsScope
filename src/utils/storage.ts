@@ -56,20 +56,22 @@ export function sanitizeUrl(rawUrl: string): { cleanedUrl: string; removedCount:
  */
 export function getStoredFavorites(): string[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    if (typeof window === 'undefined' || !window.localStorage) return [];
+    const raw = window.localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) return parsed;
     }
-  } catch (e) {
-    console.warn('Storage read error:', e);
+  } catch {
+    // Environnement restreint ou localStorage désactivé
   }
   return [];
 }
 
 export function saveStoredFavorites(ids: string[]): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
+    if (typeof window === 'undefined' || !window.localStorage) return;
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
   } catch (e) {
     console.warn('Storage write error:', e);
   }
@@ -84,6 +86,20 @@ export async function toggleFavorite(id: string, dispatch?: Dispatch): Promise<s
   } else {
     next = [id, ...current];
     await addFavoriteToIndexedDB(id, dispatch);
+  }
+  saveStoredFavorites(next);
+  return next;
+}
+
+export function toggleFavoriteId(id: string, dispatch?: Dispatch): string[] {
+  const current = getStoredFavorites();
+  let next: string[];
+  if (current.includes(id)) {
+    next = current.filter((x) => x !== id);
+    removeFavoriteFromIndexedDB(id).catch((err) => console.warn('[IndexedDB] remove error:', err));
+  } else {
+    next = [id, ...current];
+    addFavoriteToIndexedDB(id, dispatch).catch((err) => console.warn('[IndexedDB] add error:', err));
   }
   saveStoredFavorites(next);
   return next;
@@ -174,7 +190,8 @@ Date de l'audit: ${new Date().toISOString()}
 
 export function getOfflineMode(): boolean {
   try {
-    return localStorage.getItem(OFFLINE_KEY) === 'true';
+    if (typeof window === 'undefined' || !window.localStorage) return false;
+    return window.localStorage.getItem(OFFLINE_KEY) === 'true';
   } catch {
     return false;
   }
@@ -182,7 +199,8 @@ export function getOfflineMode(): boolean {
 
 export function setOfflineMode(value: boolean): void {
   try {
-    localStorage.setItem(OFFLINE_KEY, String(value));
+    if (typeof window === 'undefined' || !window.localStorage) return;
+    window.localStorage.setItem(OFFLINE_KEY, String(value));
   } catch (e) {
     console.warn('Storage error:', e);
   }
@@ -190,7 +208,8 @@ export function setOfflineMode(value: boolean): void {
 
 export function getDataMode(): 'live' | 'demo' {
   try {
-    const mode = localStorage.getItem(DATA_MODE_KEY);
+    if (typeof window === 'undefined' || !window.localStorage) return 'live';
+    const mode = window.localStorage.getItem(DATA_MODE_KEY);
     if (mode === 'live' || mode === 'demo') return mode;
   } catch {
     // fallback
@@ -200,7 +219,8 @@ export function getDataMode(): 'live' | 'demo' {
 
 export function setDataMode(mode: 'live' | 'demo'): void {
   try {
-    localStorage.setItem(DATA_MODE_KEY, mode);
+    if (typeof window === 'undefined' || !window.localStorage) return;
+    window.localStorage.setItem(DATA_MODE_KEY, mode);
   } catch (e) {
     console.warn('Storage error:', e);
   }

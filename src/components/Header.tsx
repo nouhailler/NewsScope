@@ -1,5 +1,6 @@
 import React from 'react';
-import { ActiveTab } from '../types';
+import { ActiveTab, DataSourceMode, LiveFetchState } from '../types';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface HeaderProps {
   activeTab: ActiveTab;
@@ -10,6 +11,9 @@ interface HeaderProps {
   onRefresh: () => void;
   isRefreshing: boolean;
   onOpenDiagnostic: () => void;
+  dataMode: DataSourceMode;
+  onToggleDataMode: () => void;
+  liveState: LiveFetchState;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -21,6 +25,9 @@ export const Header: React.FC<HeaderProps> = ({
   onRefresh,
   isRefreshing,
   onOpenDiagnostic,
+  dataMode,
+  onToggleDataMode,
+  liveState,
 }) => {
   const getSubTitle = () => {
     switch (activeTab) {
@@ -37,8 +44,35 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
+  const getLatencyDisplay = () => {
+    if (isOffline) return 'OFF-GRID (IDB)';
+    if (dataMode === 'demo') return 'DÉMO: 0ms';
+    if (liveState.rateLimited) return '429: COOLDOWN';
+    if (liveState.lastResponseTimeMs !== null) return `GDELT: ${liveState.lastResponseTimeMs}ms`;
+    return 'GDELT DOC 2.0';
+  };
+
+  const getStatusText = () => {
+    if (isOffline) {
+      return 'Mode hors-ligne souverain • Cache IndexedDB vérifié';
+    }
+    if (dataMode === 'demo') {
+      return 'Mode Démonstration • Dépêches synthétiques fictives';
+    }
+    if (liveState.isLoading) {
+      return 'Interrogation en cours de GDELT DOC 2.0...';
+    }
+    if (liveState.rateLimited) {
+      return liveState.lastError || 'GDELT 429 : Cooldown actif (1 req / 5s)';
+    }
+    if (liveState.lastError) {
+      return `Alerte connecteur : ${liveState.lastError}`;
+    }
+    return 'Liaison directe GDELT DOC 2.0 opérationnelle';
+  };
+
   return (
-    <header className="fixed top-0 inset-x-0 z-40 bg-[#0b1326]/85 backdrop-blur-xl pt-safe shadow-[0_1px_8px_rgba(0,0,0,0.35)] border-b border-[#222a3d]/60">
+    <header className="fixed top-0 inset-x-0 z-40 bg-[#0b1326]/90 backdrop-blur-xl pt-safe shadow-[0_1px_8px_rgba(0,0,0,0.35)] border-b border-[#222a3d]/60">
       <div className="h-24 px-4 sm:px-6 flex flex-col justify-between py-2 max-w-7xl mx-auto">
         {/* Top Brand Bar */}
         <div className="flex items-center justify-between gap-3 h-11">
@@ -60,34 +94,48 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </button>
 
-          {/* Central Live Badge */}
+          {/* Central Mode & Live Status Selector */}
           <div className="hidden sm:flex items-center gap-2">
+            {/* Live vs Demo Toggle */}
             <button
-              onClick={onOpenDiagnostic}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer ${
-                isOffline
-                  ? 'bg-amber-400/15 text-amber-300 border border-amber-400/30'
-                  : 'bg-emerald-400/15 text-emerald-400 border border-emerald-400/30'
+              onClick={onToggleDataMode}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer border ${
+                dataMode === 'live'
+                  ? 'bg-[#004965]/40 text-[#8ed5ff] border-[#38bdf8]/50 hover:bg-[#004965]/60'
+                  : 'bg-amber-500/15 text-amber-300 border-amber-400/40 hover:bg-amber-500/25'
               }`}
-              title="Ouvrir le Diagnostic Réseau"
+              title="Basculer entre l'API GDELT en direct et le jeu de données démo"
             >
               <span
                 className={`w-2 h-2 rounded-full ${
-                  isOffline ? 'bg-amber-400' : 'bg-emerald-400 animate-pulse'
+                  dataMode === 'live' ? 'bg-[#38bdf8] animate-pulse' : 'bg-amber-400'
                 }`}
               />
-              <span>{isOffline ? 'HORS-LIGNE (INDEXEDDB)' : 'EN DIRECT'}</span>
+              <span>{dataMode === 'live' ? 'SOURCE : GDELT EN DIRECT' : 'SOURCE : MODE DÉMO'}</span>
             </button>
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-[#131b2e] text-[#bdc8d1] font-mono text-[11px]">
-              <span className="material-symbols-outlined text-[13px] text-[#8ed5ff]">
-                cloud_done
+
+            {/* Offline indicator badge */}
+            {isOffline && (
+              <span className="px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 font-mono text-[10px] font-bold border border-amber-400/30">
+                OFFLINE
               </span>
-              <span>SYNC PWA</span>
-            </div>
+            )}
+
+            {/* PWA Install Button */}
+            <PWAInstallButton />
           </div>
 
           {/* Right Action Icons */}
           <div className="flex items-center gap-1 sm:gap-2">
+            {/* Data Mode Switch on mobile */}
+            <button
+              onClick={onToggleDataMode}
+              className="sm:hidden px-2 py-1 rounded bg-[#171f33] text-xs font-mono text-[#8ed5ff] border border-[#222a3d]"
+              title="Basculer Direct / Démo"
+            >
+              {dataMode === 'live' ? 'LIVE' : 'DÉMO'}
+            </button>
+
             {/* Offline Simulation Toggle */}
             <button
               onClick={onToggleOffline}
@@ -105,12 +153,12 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="hidden md:inline">{isOffline ? 'Offline' : 'Online'}</span>
             </button>
 
-            {/* Refresh Dispatches */}
+            {/* Refresh Dispatches (Real Call) */}
             <button
               onClick={onRefresh}
               aria-label="Rafraîchir les dépêches"
               className="w-9 h-9 flex items-center justify-center rounded-lg bg-[#171f33] text-[#bdc8d1] hover:text-[#8ed5ff] hover:bg-[#222a3d] transition-colors"
-              title="Forcer rafraîchissement GDELT"
+              title={dataMode === 'live' ? 'Lancer requête réelle GDELT' : 'Réinitialiser jeu démo'}
             >
               <span
                 className={`material-symbols-outlined text-[19px] ${
@@ -151,36 +199,52 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Live Telemetry / Ingestion Status Strip */}
+        {/* Live Telemetry / Ingestion Status Strip (Honest Metrics) */}
         <div className="flex items-center justify-between bg-[#060e20]/80 px-3 py-1 rounded text-[11px] font-mono border border-[#222a3d]/40">
           <div className="flex items-center gap-2 truncate">
             <span className="relative flex h-2 w-2 shrink-0">
               <span
                 className={`animate-ping absolute inline-flex h-full w-full rounded-full ${
-                  isOffline ? 'bg-amber-400' : 'bg-[#38bdf8]'
+                  isOffline
+                    ? 'bg-amber-400'
+                    : dataMode === 'demo'
+                    ? 'bg-amber-400'
+                    : liveState.lastError
+                    ? 'bg-rose-400'
+                    : 'bg-[#38bdf8]'
                 } opacity-75`}
               />
               <span
                 className={`relative inline-flex rounded-full h-2 w-2 ${
-                  isOffline ? 'bg-amber-400' : 'bg-[#38bdf8]'
+                  isOffline
+                    ? 'bg-amber-400'
+                    : dataMode === 'demo'
+                    ? 'bg-amber-400'
+                    : liveState.lastError
+                    ? 'bg-rose-400'
+                    : 'bg-[#38bdf8]'
                 }`}
               />
             </span>
             <span
               className={`font-semibold tracking-wider uppercase truncate ${
-                isOffline ? 'text-amber-300' : 'text-[#38bdf8]'
+                isOffline
+                  ? 'text-amber-300'
+                  : dataMode === 'demo'
+                  ? 'text-amber-300'
+                  : liveState.lastError
+                  ? 'text-rose-300'
+                  : 'text-[#38bdf8]'
               }`}
             >
-              {isOffline
-                ? 'Mode hors-ligne souverain • Cache IndexedDB vérifié'
-                : 'Reconnexion réussie • Ingestion GDELT DOC 2.0 active'}
+              {getStatusText()}
             </span>
           </div>
           <button
             onClick={onOpenDiagnostic}
             className="flex items-center gap-2 text-[#bdc8d1] hover:text-[#8ed5ff] shrink-0 ml-2"
           >
-            <span>{isOffline ? 'ISOLATION: 0ms' : 'WIRE: 18ms'}</span>
+            <span className="font-mono">{getLatencyDisplay()}</span>
             <span className="hidden sm:inline text-xs text-[#38bdf8] underline font-sans">
               Diagnostic
             </span>

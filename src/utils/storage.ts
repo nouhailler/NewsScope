@@ -122,20 +122,26 @@ export function exportFavoritesAsJson(dispatches: Dispatch[]): void {
     schema: 'NewsScope_v1.4.2',
     exported_at: new Date().toISOString(),
     total_items: dispatches.length,
-    storage_engine: 'IndexedDB / newsScope_v1 (local, non-chiffré)',
-    integrity_note: 'Dépêches exportées au format JSON RFC 8259 sans données de tracking.',
+    storage_engine: 'IndexedDB / NewsScope_v1 (local souverain, non-chiffré)',
+    integrity_note: 'Dépêches exportées au format JSON RFC 8259 avec empreinte SHA-256 sans données de tracking.',
     dispatches: dispatches.map((d) => ({
       id: d.id,
       is_mock: d.isMock,
       gkg_id: d.gkgId,
       agency: d.agencyLabel,
+      source_domain: d.sourceDomain || (d.agency === 'reuters' ? 'reuters.com' : d.agency === 'bloomberg' ? 'bloomberg.com' : d.agency === 'afp' ? 'afp.com' : 'source-tierce.eu'),
       title: d.title,
       utc_time: d.utcTime,
       canonical_url: d.canonicalUrl,
       cleaned_url: d.cleanedUrl,
-      sentiment_score: d.sentimentScore,
+      sha256_hash: d.sha256,
+      sentiment_score: d.sentimentScore ?? null,
       thematic_tags: d.thematicTags,
-      status: d.isCanonical ? 'VALIDATED_CANONICAL' : 'SYNDICATED_MENTION',
+      status: d.isCanonical
+        ? 'VALIDATED_CANONICAL'
+        : d.isThirdPartyMention
+        ? 'SYNDICATED_MENTION'
+        : 'UNVERIFIED_PROVENANCE',
       stored_in_cache: true,
     })),
   };

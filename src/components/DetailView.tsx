@@ -3,7 +3,7 @@ import { Dispatch } from '../types';
 import { FreshnessBanner } from './FreshnessBanner';
 
 interface DetailViewProps {
-  dispatch: Dispatch;
+  dispatch: Dispatch | null | undefined;
   isFavorite: boolean;
   onToggleFavorite: () => void;
   onBack: () => void;
@@ -24,15 +24,59 @@ export const DetailView: React.FC<DetailViewProps> = ({
   const [isRevalidating, setIsRevalidating] = useState(false);
   const [isPurged, setIsPurged] = useState(false);
 
+  // Phase 1: Explicit empty state if no dispatch is selected or available
+  if (!dispatch) {
+    return (
+      <div className="flex flex-col w-full max-w-3xl mx-auto px-4 py-16 text-center items-center justify-center space-y-4">
+        <div className="w-16 h-16 rounded-2xl bg-[#171f33] border border-[#222a3d] flex items-center justify-center text-[#87929a]">
+          <span className="material-symbols-outlined text-4xl">feed</span>
+        </div>
+        <div className="space-y-1">
+          <h2 className="font-['Newsreader'] text-xl font-semibold text-[#dae2fd]">
+            Aucune dépêche sélectionnée
+          </h2>
+          <p className="font-['Source_Serif_4'] text-xs sm:text-sm text-[#bdc8d1] max-w-md mx-auto">
+            Aucun article réel ou mis en cache n'est actuellement disponible pour afficher les détails.
+            Vérifiez l'état de votre connexion ou activez le mode démonstration si vous souhaitez explorer l'interface avec des données synthétiques.
+          </p>
+        </div>
+        <button
+          onClick={onBack}
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#38bdf8] text-[#004965] font-['Geist'] text-xs font-bold uppercase tracking-wider hover:bg-[#8ed5ff] transition-colors shadow-sm"
+        >
+          <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+          <span>Retour au flux</span>
+        </button>
+      </div>
+    );
+  }
+
+  // Phase 2: Domain and provenance resolution
+  const verifiedDomain =
+    dispatch.sourceDomain ||
+    (dispatch.agency === 'reuters'
+      ? 'reuters.com'
+      : dispatch.agency === 'bloomberg'
+      ? 'bloomberg.com'
+      : dispatch.agency === 'afp'
+      ? 'afp.com'
+      : 'domaine-inconnu');
+
   const rawPayload = {
     gkg_id: dispatch.gkgId,
-    source_domain: dispatch.agency === 'reuters' ? 'reuters.com' : dispatch.agency === 'bloomberg' ? 'bloomberg.com' : 'afp.com',
-    urgency: 'BULLETIN',
+    source_domain: verifiedDomain,
+    agency_detected: dispatch.agency,
+    is_canonical: dispatch.isCanonical,
+    is_third_party: !!dispatch.isThirdPartyMention,
     canonical_url: dispatch.canonicalUrl,
     cleaned_url: dispatch.cleanedUrl,
-    verification_sig: dispatch.sha256,
-    sentiment_score: dispatch.sentimentScore,
-    status: dispatch.isCanonical ? 'VALIDATED_CANONICAL' : 'SYNDICATED_MENTION',
+    sha256_hash: dispatch.sha256,
+    sentiment_score: dispatch.sentimentScore ?? null,
+    status: dispatch.isCanonical
+      ? 'CANONICAL_AGENCY_PUBLICATION'
+      : dispatch.isThirdPartyMention
+      ? 'THIRD_PARTY_SYNDICATION'
+      : 'UNVERIFIED_PROVENANCE',
   };
 
   const handleCopyPayload = () => {
@@ -49,7 +93,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
           url: dispatch.canonicalUrl,
         });
       } catch {
-        // User cancelled
+        // Annulation utilisateur
       }
     } else {
       navigator.clipboard?.writeText(dispatch.canonicalUrl);
@@ -62,7 +106,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
     setIsRevalidating(true);
     setTimeout(() => {
       setIsRevalidating(false);
-    }, 1200);
+    }, 800);
   };
 
   return (
@@ -78,7 +122,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
               arrow_back
             </span>
             <span className="font-['Geist'] text-xs font-semibold tracking-wider uppercase">
-              Retour au flux direct
+              Retour au flux
             </span>
           </button>
 
@@ -142,9 +186,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
             </span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span>INGESTION : +88s</span>
-            <span className="text-[#3e484f]">•</span>
-            <span className="text-[#38bdf8] font-medium">EDGE REPLICATED</span>
+            <span>SOURCE : {verifiedDomain}</span>
           </div>
         </div>
       </div>
@@ -174,7 +216,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
                 </span>
               </div>
               <p className="font-mono text-[11px] text-[#bdc8d1] truncate">
-                Disponible 100% hors-ligne • Cache IndexedDB synchronisé
+                Disponible 100% hors-ligne • Base NewsScope_v1
               </p>
             </div>
           </div>
@@ -190,7 +232,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
         </aside>
       )}
 
-      {/* 3. Source Identity & Cryptographic Fingerprint Strip */}
+      {/* 3. Source Identity & Provenance Details Strip */}
       <section className="p-3.5 sm:p-4 rounded-xl bg-[#131b2e] shadow-md space-y-2.5 border border-[#222a3d]">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 flex-wrap">
@@ -201,11 +243,23 @@ export const DetailView: React.FC<DetailViewProps> = ({
               {dispatch.agencyLabel}
             </span>
 
-            {/* Canonical Indicator Chip */}
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#38bdf8]/15 text-[#38bdf8] font-['Geist'] text-[11px] font-semibold uppercase tracking-wider">
-              <span className="material-symbols-outlined text-[13px]">verified</span>
-              Source canonique conforme
-            </span>
+            {/* Provenance Indicator: Distinct canonical vs third party vs unconfirmed */}
+            {dispatch.isCanonical ? (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-400/15 text-emerald-300 border border-emerald-400/30 font-['Geist'] text-[11px] font-semibold uppercase tracking-wider">
+                <span className="material-symbols-outlined text-[13px]">verified</span>
+                Publication originale vérifiée
+              </span>
+            ) : dispatch.isThirdPartyMention ? (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-400/15 text-amber-300 border border-amber-400/30 font-['Geist'] text-[11px] font-semibold uppercase tracking-wider">
+                <span className="material-symbols-outlined text-[13px]">swap_horiz</span>
+                Mention tierce / Rediffusion
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-400/15 text-slate-300 border border-slate-400/30 font-['Geist'] text-[11px] font-semibold uppercase tracking-wider">
+                <span className="material-symbols-outlined text-[13px]">help_outline</span>
+                Provenance non confirmée
+              </span>
+            )}
           </div>
 
           <div className="font-mono text-xs text-[#bdc8d1] flex items-center gap-1">
@@ -221,17 +275,17 @@ export const DetailView: React.FC<DetailViewProps> = ({
           size="detailed"
         />
 
-        {/* Cryptographic Hash Bar */}
+        {/* Cryptographic Hash Bar (FIPS 180-4 standard) */}
         <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 rounded bg-[#060e20] font-mono text-[11px] text-[#bdc8d1] border border-[#222a3d]">
           <div className="flex items-center gap-1.5 min-w-0">
             <span className="material-symbols-outlined text-[14px] text-[#8ed5ff]">
               fingerprint
             </span>
-            <span className="truncate text-[#dae2fd]">SHA-256: {dispatch.sha256}</span>
+            <span className="truncate text-[#dae2fd]">SHA-256 : {dispatch.sha256}</span>
           </div>
           <span className="inline-flex items-center gap-1 text-[#38bdf8] font-semibold">
             <span className="w-1.5 h-1.5 rounded-full bg-[#38bdf8]" />
-            SIG-VALIDÉE
+            EMPREINTE FIPS 180-4
           </span>
         </div>
       </section>
@@ -240,27 +294,32 @@ export const DetailView: React.FC<DetailViewProps> = ({
       <article className="p-3.5 sm:p-4 rounded-xl bg-[#131b2e] shadow-md space-y-3.5 border border-[#222a3d]">
         <div className="space-y-1">
           <p className="font-['Geist'] text-xs font-bold text-[#ffdbca] tracking-widest uppercase">
-            {dispatch.kicker || 'Dépêche Officielle & Téléscripteur'}
+            {dispatch.kicker || 'Dépêche Factuelle'}
           </p>
           <h1 className="font-['Newsreader'] text-xl sm:text-2xl text-[#dae2fd] tracking-tight leading-snug font-semibold">
             {dispatch.title}
           </h1>
         </div>
 
-        {/* Chapeau officiel & Desk Attribution */}
+        {/* Desk Attribution and word count */}
         <div className="p-3.5 rounded bg-[#171f33] space-y-2 border border-[#222a3d]">
           <div className="flex items-center justify-between text-[#bdc8d1] font-mono text-xs pb-1 border-b border-[#222a3d]/60">
             <span className="font-semibold text-[#8ed5ff]">
-              {dispatch.bureauDesk || 'DESK EUROPE CENTRAL'}
+              {dispatch.bureauDesk || 'DESK SOURCE'}
             </span>
-            <span>LONG. EXTRAIT : ~{dispatch.wordCount ? Math.round(dispatch.wordCount / 15) : 48} MOTS</span>
+            <span>
+              LONG. EXTRAIT :{' '}
+              {dispatch.wordCount !== undefined
+                ? `~${Math.round(dispatch.wordCount / 15)} MOTS`
+                : 'NON DISPONIBLE'}
+            </span>
           </div>
           <blockquote className="font-['Source_Serif_4'] text-sm sm:text-base italic text-[#dae2fd] leading-relaxed pl-2 border-l-2 border-[#38bdf8]">
             {dispatch.quote || dispatch.excerpt}
           </blockquote>
         </div>
 
-        {/* Official Wire Photo Frame (BCE Frankfurt or satellite) */}
+        {/* Wire Photo Frame (without fabricated resolutions or fake credits) */}
         {dispatch.mediaImage && (
           <figure className="space-y-1.5">
             <div className="relative w-full aspect-[16/9] rounded-lg overflow-hidden bg-[#2d3449] shadow-sm border border-[#222a3d]">
@@ -271,18 +330,26 @@ export const DetailView: React.FC<DetailViewProps> = ({
               />
               <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-[#060e20]/80 backdrop-blur-md font-mono text-[10px] text-[#8ed5ff] uppercase font-bold tracking-wider flex items-center gap-1">
                 <span className="material-symbols-outlined text-[13px]">photo_camera</span>
-                <span>Photo Dépêche Officielle • {dispatch.mediaRawRes || '2400 × 1600 RAW'}</span>
+                <span>
+                  Photo • {dispatch.mediaRawRes || 'Résolution non communiquée'}
+                </span>
               </div>
             </div>
             <figcaption className="flex items-center justify-between text-[#bdc8d1] font-['Geist'] text-[11px] px-1">
-              <span>{dispatch.mediaCaption || 'Documentation de presse certifiée'}</span>
-              <span className="font-mono">Crédit : Reuters / Pool Photo</span>
+              <span>{dispatch.mediaCaption || 'Illustration associée'}</span>
+              <span className="font-mono">
+                Crédit :{' '}
+                {dispatch.mediaCredit ||
+                  (dispatch.agency !== 'other'
+                    ? dispatch.agencyLabel
+                    : verifiedDomain)}
+              </span>
             </figcaption>
           </figure>
         )}
       </article>
 
-      {/* 5. Legal Compliance & Neighbouring Rights (Directive UE 2019/790) */}
+      {/* 5. Legal Compliance & Outbound Link */}
       <section className="p-3.5 sm:p-4 rounded-xl bg-[#131b2e] shadow-md space-y-3.5 border border-[#222a3d]">
         <div className="flex items-start gap-2.5">
           <div className="w-8 h-8 rounded flex shrink-0 items-center justify-center bg-[#171f33] text-[#38bdf8]">
@@ -301,7 +368,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
         <p className="font-['Source_Serif_4'] text-xs sm:text-[13px] text-[#bdc8d1] leading-relaxed">
           NewsScope observe scrupuleusement le cadre d'agrégation d'urgence : aucun
           contournement de paywall, republication intégrale non autorisée ou scraping de contenu
-          propriétaire n'est opéré. Seul le court extrait officiel GDELT/Reuters est indexé.
+          propriétaire n'est opéré. Seul le court extrait public indexé par GDELT est référencé.
         </p>
 
         {/* Tracker stripping telemetry badge */}
@@ -332,12 +399,15 @@ export const DetailView: React.FC<DetailViewProps> = ({
                 ? 'Reuters.com'
                 : dispatch.agency === 'bloomberg'
                 ? 'Bloomberg.com'
-                : 'AFP.com'}
+                : dispatch.agency === 'afp'
+                ? 'AFP.com'
+                : verifiedDomain}
             </span>
             <span className="material-symbols-outlined text-[18px]">open_in_new</span>
           </div>
           <span className="font-['Geist'] text-[11px] font-medium opacity-85 mt-0.5">
-            ~{dispatch.wordCount} mots • Analyse sectorielle complète • Onglet sécurisé
+            {dispatch.wordCount !== undefined ? `~${dispatch.wordCount} mots • ` : ''}
+            Consulter la publication source • Onglet sécurisé
           </span>
         </a>
       </section>
@@ -354,7 +424,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
             </h2>
           </div>
           <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-[#222a3d] text-[#bdc8d1] font-semibold">
-            v2.1.0-LIVE
+            {dispatch.isMock ? 'DÉMO SYNTHÉTIQUE' : 'DOC2-PUBLIC'}
           </span>
         </div>
 
@@ -362,31 +432,34 @@ export const DetailView: React.FC<DetailViewProps> = ({
         <div className="grid grid-cols-2 gap-2 font-mono">
           <div className="p-2.5 rounded bg-[#171f33] space-y-1 border border-[#222a3d]">
             <span className="text-[10px] text-[#bdc8d1] uppercase block">Global Event ID</span>
-            <span className="text-xs sm:text-sm font-semibold text-[#dae2fd]">
+            <span className="text-xs sm:text-sm font-semibold text-[#dae2fd] truncate block">
               #{dispatch.gkgId}
             </span>
-            <span className="text-[10px] text-[#bdc8d1] block">Tableau GKG Master</span>
+            <span className="text-[10px] text-[#bdc8d1] block">Identifiant GDELT</span>
           </div>
+
           <div className="p-2.5 rounded bg-[#171f33] space-y-1 border border-[#222a3d]">
-            <span className="text-[10px] text-[#bdc8d1] uppercase block">Domaine & Fiabilité</span>
-            <span className="text-xs sm:text-sm font-semibold text-[#8ed5ff]">
-              {dispatch.thirdPartySource || (dispatch.agency === 'reuters' ? 'reuters.com' : dispatch.agency === 'bloomberg' ? 'bloomberg.com' : 'afp.com')}
+            <span className="text-[10px] text-[#bdc8d1] uppercase block">Domaine Réel</span>
+            <span className="text-xs sm:text-sm font-semibold text-[#8ed5ff] truncate block">
+              {verifiedDomain}
             </span>
-            <span className="text-[10px] text-[#38bdf8] block">
+            <span className="text-[10px] text-[#38bdf8] block truncate">
               {dispatch.confidenceScore !== undefined
-                ? `Score Confiance : ${dispatch.confidenceScore}%`
+                ? `Score : ${dispatch.confidenceScore}%`
                 : 'Score : Non fourni par GDELT artlist'}
             </span>
           </div>
+
           <div className="p-2.5 rounded bg-[#171f33] space-y-1 border border-[#222a3d]">
-            <span className="text-[10px] text-[#bdc8d1] uppercase block">Langue Source</span>
+            <span className="text-[10px] text-[#bdc8d1] uppercase block">Langue Détectée</span>
             <span className="text-xs sm:text-sm font-semibold text-[#dae2fd]">
-              {dispatch.language || 'Non spécifié'}
+              {dispatch.language ? dispatch.language.toUpperCase() : 'Non spécifié'}
             </span>
             <span className="text-[10px] text-[#bdc8d1] block">
-              Détecté • Trad. auto non requise
+              Métadonnée de source
             </span>
           </div>
+
           <div className="p-2.5 rounded bg-[#171f33] space-y-1 border border-[#222a3d]">
             <span className="text-[10px] text-[#bdc8d1] uppercase block">Indice Sentiment</span>
             <span className="text-xs sm:text-sm font-semibold text-[#ffdbca]">
@@ -413,25 +486,29 @@ export const DetailView: React.FC<DetailViewProps> = ({
               {dispatch.mediaVelocity !== undefined ? `${dispatch.mediaVelocity} reprises` : 'Indisponible'}
             </span>
             <span className="text-[#bdc8d1] hidden sm:inline">
-              {dispatch.mediaVelocity !== undefined ? '(Cluster d’amplification)' : '(Nécessite le tableau GKG complet)'}
+              {dispatch.mediaVelocity !== undefined ? '(Cluster détecté)' : '(Nécessite le tableau GKG complet)'}
             </span>
           </div>
         </div>
 
-        {/* GKG Thematic Taxonomy Chips */}
+        {/* Thematic Taxonomy Chips */}
         <div className="space-y-1.5">
           <span className="font-['Geist'] text-[10px] text-[#bdc8d1] font-bold uppercase tracking-wider block">
-            Thématiques d'Indexation GKG
+            Thématiques d'Indexation
           </span>
           <div className="flex flex-wrap gap-1.5 font-mono text-[11px]">
-            {dispatch.thematicTags.map((tag) => (
-              <span
-                key={tag}
-                className="px-2 py-0.5 rounded bg-[#171f33] text-[#dae2fd] border border-[#222a3d] hover:text-[#8ed5ff] transition-colors cursor-pointer"
-              >
-                {tag}
-              </span>
-            ))}
+            {dispatch.thematicTags && dispatch.thematicTags.length > 0 ? (
+              dispatch.thematicTags.map((tag) => (
+                <span
+                  key={tag}
+                  className="px-2 py-0.5 rounded bg-[#171f33] text-[#dae2fd] border border-[#222a3d]"
+                >
+                  {tag}
+                </span>
+              ))
+            ) : (
+              <span className="text-xs text-[#87929a] italic">Aucune balise thématique fournie</span>
+            )}
           </div>
         </div>
 
@@ -482,7 +559,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
             </span>
           </div>
           <p className="font-mono text-[11px] text-[#bdc8d1] truncate">
-            Clé : {dispatch.id} | Poids sandbox : {dispatch.packetSize} (LRU 7 jours)
+            Clé : {dispatch.id} | Poids sandbox : {dispatch.packetSize || 'Non mesuré'}
           </p>
         </div>
 
@@ -512,7 +589,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
 
       {/* 8. Bottom Dispatch Telemetry */}
       <div className="py-2 text-center font-mono text-[10px] text-[#87929a] uppercase">
-        GDELT NODE FRA-04 • PROTOCOLE RSS/DOC2 FEED DISPATCH #{dispatch.gkgId}
+        GDELT DOC2 IDENTIFIANT DE PUBLICATION #{dispatch.gkgId}
       </div>
     </div>
   );

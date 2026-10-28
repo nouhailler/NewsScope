@@ -28,6 +28,8 @@ export interface Dispatch {
   cleanedUrl: string;
   removedTrackersCount: number;
   gkgId: string;
+  sourceDomain?: string;
+  mediaCredit?: string;
   confidenceScore?: number;
   sentimentScore?: number;
   sentimentLabel?: string;
@@ -57,6 +59,8 @@ export interface LiveFetchState {
   lastResponseStatus: number | null;
   lastResponseTimeMs: number | null;
   lastError: string | null;
+  errorCategory?: 'CORS' | 'RATE_LIMIT' | 'TIMEOUT' | 'NOT_FOUND' | 'SERVER_ERROR' | 'NETWORK' | 'INVALID_JSON' | 'EMPTY' | null;
+  endpointUsed?: string;
   rateLimited?: boolean;
   cooldownUntil: number | null; // Timestamp for 5s rate limit
 }

@@ -15,6 +15,7 @@ export interface FetchResult {
   httpStatus: number | null;
   latencyMs: number;
   error: string | null;
+  errorCategory?: 'CORS' | 'RATE_LIMIT' | 'TIMEOUT' | 'NOT_FOUND' | 'SERVER_ERROR' | 'NETWORK' | 'INVALID_JSON' | 'EMPTY' | null;
   rateLimited: boolean;
   totalArticlesCount: number;
   endpointUsed?: string;
@@ -86,6 +87,7 @@ export async function fetchLiveGdeltDispatches(
       httpStatus: null,
       latencyMs: 0,
       rateLimited: false,
+      errorCategory: 'RATE_LIMIT',
       error: 'Une requête vers GDELT est déjà en cours d’exécution. Veuillez patienter.',
       totalArticlesCount: 0,
     };
@@ -100,6 +102,7 @@ export async function fetchLiveGdeltDispatches(
       httpStatus: 429,
       latencyMs: 0,
       rateLimited: true,
+      errorCategory: 'RATE_LIMIT',
       error: `Limitation de débit GDELT active : veuillez patienter ${remainingSecs} seconde(s) avant la prochaine requête.`,
       totalArticlesCount: 0,
     };
@@ -144,6 +147,7 @@ export async function fetchLiveGdeltDispatches(
           httpStatus: null,
           latencyMs,
           rateLimited: false,
+          errorCategory: 'TIMEOUT',
           error: 'Délai d’attente dépassé (Timeout 8.5s vers GDELT).',
           totalArticlesCount: 0,
           endpointUsed: proxyUrl,
@@ -172,6 +176,7 @@ export async function fetchLiveGdeltDispatches(
             httpStatus: null,
             latencyMs,
             rateLimited: false,
+            errorCategory: 'TIMEOUT',
             error: 'Délai d’attente dépassé (Timeout 8.5s vers GDELT).',
             totalArticlesCount: 0,
             endpointUsed,
@@ -185,6 +190,7 @@ export async function fetchLiveGdeltDispatches(
           httpStatus: null,
           latencyMs,
           rateLimited: false,
+          errorCategory: isCORS ? 'CORS' : 'NETWORK',
           error: isCORS
             ? 'Erreur CORS navigateur / Proxy requis : GDELT n’autorise pas les appels directs cross-origin. Un proxy /api/gdelt (serveur ou Edge) est nécessaire.'
             : `Erreur de connexion directe : ${directErr.message || 'Hôte GDELT inaccessible'}`,
@@ -205,6 +211,7 @@ export async function fetchLiveGdeltDispatches(
         httpStatus: null,
         latencyMs,
         rateLimited: false,
+        errorCategory: 'NETWORK',
         error: 'Échec de connexion : Aucune réponse réseau n’a pu être obtenue.',
         totalArticlesCount: 0,
         endpointUsed,
@@ -227,6 +234,7 @@ export async function fetchLiveGdeltDispatches(
         httpStatus: 429,
         latencyMs,
         rateLimited: true,
+        errorCategory: 'RATE_LIMIT',
         error: `GDELT 429 (Trop de requêtes) : ${errDetail}`,
         totalArticlesCount: 0,
         endpointUsed,
@@ -234,14 +242,17 @@ export async function fetchLiveGdeltDispatches(
       };
     }
 
-    // Traitement des autres erreurs HTTP (ex: 500, 502, 503)
+    // Traitement des autres erreurs HTTP (ex: 404, 500, 502, 503)
     if (!res.ok) {
+      const is5xx = res.status >= 500 && res.status < 600;
+      const is404 = res.status === 404;
       return {
         success: false,
         dispatches: [],
         httpStatus: res.status,
         latencyMs,
         rateLimited: false,
+        errorCategory: is404 ? 'NOT_FOUND' : is5xx ? 'SERVER_ERROR' : 'NETWORK',
         error: `Erreur HTTP ${res.status}: ${res.statusText || 'Réponse serveur non valide'}`,
         totalArticlesCount: 0,
         endpointUsed,
@@ -261,6 +272,7 @@ export async function fetchLiveGdeltDispatches(
         httpStatus: res.status,
         latencyMs,
         rateLimited: false,
+        errorCategory: 'INVALID_JSON',
         error: 'Réponse GDELT invalide : le serveur n’a pas renvoyé de JSON valide.',
         totalArticlesCount: 0,
         endpointUsed,
@@ -289,13 +301,16 @@ export async function fetchLiveGdeltDispatches(
       }
     }
 
+    const isEmpty = normalized.length === 0;
+
     return {
-      success: true,
+      success: !isEmpty,
       dispatches: normalized,
       httpStatus: res.status,
       latencyMs,
       rateLimited: false,
-      error: null,
+      errorCategory: isEmpty ? 'EMPTY' : null,
+      error: isEmpty ? 'Aucun article trouvé pour les critères sélectionnés.' : null,
       totalArticlesCount: normalized.length,
       endpointUsed,
       isProxy,
@@ -309,6 +324,7 @@ export async function fetchLiveGdeltDispatches(
       httpStatus: null,
       latencyMs,
       rateLimited: false,
+      errorCategory: isTimeout ? 'TIMEOUT' : 'NETWORK',
       error: isTimeout
         ? 'Délai d’attente dépassé (Timeout 8.5s vers GDELT).'
         : `Erreur réseau : ${err.message || 'Impossible de joindre le service GDELT'}`,

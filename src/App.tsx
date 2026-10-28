@@ -124,6 +124,7 @@ export default function App() {
         ...prev,
         isLoading: false,
         lastError: err.message || 'Erreur inattendue lors de la requête GDELT',
+        errorCategory: 'NETWORK',
       }));
     } finally {
       setIsRefreshing(false);
@@ -137,17 +138,23 @@ export default function App() {
     }
   }, [dataMode, isOffline, executeLiveFetch, filters]);
 
-  // Favorite toggle synced with IndexedDB
-  const handleToggleFavorite = (id: string) => {
-    const allKnown = [...liveDispatches, ...INITIAL_DISPATCHES, ...cachedDispatches];
-    const target = allKnown.find((d) => d.id === id);
-    const updated = toggleFavoriteId(id, target);
+  // Favorite toggle synced with IndexedDB as single source of truth
+  const handleToggleFavorite = async (id: string) => {
+    const target = allDispatchesPool.find((d) => d.id === id);
+    const updated = await toggleFavorite(id, target);
     setFavorites([...updated]);
+    if (target && updated.includes(id)) {
+      setCachedDispatches((prev) => {
+        if (prev.some((d) => d.id === target.id)) return prev;
+        return [target, ...prev];
+      });
+    }
   };
 
-  const handlePurgeAllFavorites = () => {
-    saveStoredFavorites([]);
+  const handlePurgeAllFavorites = async () => {
+    await purgeAllFavorites();
     setFavorites([]);
+    setCachedDispatches([]);
   };
 
   const handleToggleOffline = () => {
@@ -197,20 +204,26 @@ export default function App() {
     return INITIAL_DISPATCHES;
   }, [isOffline, dataMode, liveDispatches, cachedDispatches]);
 
-  // Current selected dispatch for detail view
-  const currentDispatch =
-    activeDispatches.find((d) => d.id === selectedDispatchId) ||
-    activeDispatches[0] ||
-    INITIAL_DISPATCHES[0];
+  // Current selected dispatch for detail view - NO FALLBACK TO INITIAL_DISPATCHES IN LIVE OR OFFLINE MODE
+  const currentDispatch = React.useMemo(() => {
+    if (selectedDispatchId) {
+      const match = activeDispatches.find((d) => d.id === selectedDispatchId);
+      if (match) return match;
+    }
+    return activeDispatches[0] || null;
+  }, [activeDispatches, selectedDispatchId]);
 
-  // Combined dispatches pool for favoris view
+  // Combined dispatches pool for favoris view:
+  // IN LIVE OR OFFLINE MODE, DO NOT MIX IN INITIAL_DISPATCHES!
   const allDispatchesPool = React.useMemo(() => {
     const map = new Map<string, Dispatch>();
-    INITIAL_DISPATCHES.forEach((d) => map.set(d.id, d));
+    if (dataMode === 'demo') {
+      INITIAL_DISPATCHES.forEach((d) => map.set(d.id, d));
+    }
     cachedDispatches.forEach((d) => map.set(d.id, d));
     liveDispatches.forEach((d) => map.set(d.id, d));
     return Array.from(map.values());
-  }, [liveDispatches, cachedDispatches]);
+  }, [dataMode, liveDispatches, cachedDispatches]);
 
   // Keyboard shortcut support (ESC closes modal)
   useEffect(() => {
@@ -268,8 +281,8 @@ export default function App() {
         {activeTab === 'detail' && (
           <DetailView
             dispatch={currentDispatch}
-            isFavorite={favorites.includes(currentDispatch.id)}
-            onToggleFavorite={() => handleToggleFavorite(currentDispatch.id)}
+            isFavorite={currentDispatch ? favorites.includes(currentDispatch.id) : false}
+            onToggleFavorite={() => currentDispatch && handleToggleFavorite(currentDispatch.id)}
             onBack={() => setActiveTab('flux-direct')}
             onOpenJsonInspector={() => setActiveModal('json-inspector')}
             onGoToFavorites={() => setActiveTab('favoris')}
@@ -325,7 +338,7 @@ export default function App() {
       />
 
       {/* Modals & Drawers */}
-      {activeModal === 'json-inspector' && (
+      {activeModal === 'json-inspector' && currentDispatch && (
         <JsonInspectorModal
           dispatch={currentDispatch}
           onClose={() => setActiveModal(null)}

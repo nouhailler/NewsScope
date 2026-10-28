@@ -18,6 +18,7 @@ import {
 import {
   getAllIndexedDBFavorites,
   getDispatchFromIndexedDB,
+  getAllCachedDispatches,
 } from './utils/indexedDB';
 import { fetchLiveGdeltDispatches } from './services/gdeltService';
 import { Header } from './components/Header';
@@ -67,22 +68,18 @@ export default function App() {
     urlSanitization: true,
   });
 
-  // Load IndexedDB favorites on mount
+  // Load IndexedDB favorites and all cached dispatches on mount
   useEffect(() => {
-    getAllIndexedDBFavorites().then(async (idbFavorites) => {
+    Promise.all([
+      getAllIndexedDBFavorites(),
+      getAllCachedDispatches(),
+    ]).then(([idbFavorites, idbDispatches]) => {
       if (idbFavorites.length > 0) {
         setFavorites(idbFavorites);
         saveStoredFavorites(idbFavorites);
-
-        // Preload any cached dispatches for offline mode
-        const loaded: Dispatch[] = [];
-        for (const id of idbFavorites) {
-          const item = await getDispatchFromIndexedDB(id);
-          if (item) loaded.push(item);
-        }
-        if (loaded.length > 0) {
-          setCachedDispatches(loaded);
-        }
+      }
+      if (idbDispatches.length > 0) {
+        setCachedDispatches(idbDispatches);
       }
     }).catch(console.warn);
   }, []);
@@ -186,25 +183,23 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Determine which dispatches to feed the views
+  // Determine which dispatches to feed the views — STRICT SEPARATION (NO SILENT FALLBACKS)
   const activeDispatches: Dispatch[] = React.useMemo(() => {
     if (isOffline) {
-      // In offline mode: prefer locally cached dispatches
-      if (cachedDispatches.length > 0) return cachedDispatches;
-      return INITIAL_DISPATCHES;
+      // In offline mode: ONLY articles actually preserved in IndexedDB
+      return cachedDispatches;
     }
     if (dataMode === 'live') {
-      // If live has returned articles, use them. If still loading and empty, fallback gracefully.
-      if (liveDispatches.length > 0) return liveDispatches;
-      return INITIAL_DISPATCHES;
+      // In live mode: ONLY articles actually fetched from GDELT DOC 2.0
+      return liveDispatches;
     }
+    // In demo mode: ONLY synthetic demonstration data
     return INITIAL_DISPATCHES;
   }, [isOffline, dataMode, liveDispatches, cachedDispatches]);
 
   // Current selected dispatch for detail view
   const currentDispatch =
     activeDispatches.find((d) => d.id === selectedDispatchId) ||
-    INITIAL_DISPATCHES.find((d) => d.id === selectedDispatchId) ||
     activeDispatches[0] ||
     INITIAL_DISPATCHES[0];
 

@@ -30,18 +30,54 @@ export function getFreshnessInfo(
   now: Date = new Date(),
   isMock: boolean = false
 ): FreshnessInfo {
+  if (!timestampStr || typeof timestampStr !== 'string' || timestampStr.trim() === '') {
+    return {
+      date: new Date(0),
+      dayLabel: 'Date non fournie',
+      timeLabel: '--:--:-- UTC',
+      fullDateTimeLabel: 'Date et heure non fournies par la source',
+      relativeLabel: 'Non disponible',
+      freshnessCategory: 'older',
+      freshnessBadgeLabel: 'DATE INDISPONIBLE',
+      badgeContainerClass: 'bg-[#131b2e] text-[#87929a] border border-[#222a3d]',
+      badgeDotClass: 'bg-[#87929a]',
+      isFresh: false,
+      hoursAgo: 99999,
+    };
+  }
+
   let date: Date;
   try {
-    if (!timestampStr) {
-      date = new Date();
-    } else {
-      date = new Date(timestampStr);
-      if (isNaN(date.getTime())) {
-        date = new Date();
-      }
+    date = new Date(timestampStr);
+    if (isNaN(date.getTime()) || date.getTime() === 0) {
+      return {
+        date: new Date(0),
+        dayLabel: 'Date invalide',
+        timeLabel: '--:--:-- UTC',
+        fullDateTimeLabel: 'Format de date invalide',
+        relativeLabel: 'Non disponible',
+        freshnessCategory: 'older',
+        freshnessBadgeLabel: 'DATE INVALIDE',
+        badgeContainerClass: 'bg-rose-500/15 text-rose-300 border border-rose-400/30',
+        badgeDotClass: 'bg-rose-400',
+        isFresh: false,
+        hoursAgo: 99999,
+      };
     }
   } catch {
-    date = new Date();
+    return {
+      date: new Date(0),
+      dayLabel: 'Date invalide',
+      timeLabel: '--:--:-- UTC',
+      fullDateTimeLabel: 'Format de date invalide',
+      relativeLabel: 'Non disponible',
+      freshnessCategory: 'older',
+      freshnessBadgeLabel: 'DATE INVALIDE',
+      badgeContainerClass: 'bg-rose-500/15 text-rose-300 border border-rose-400/30',
+      badgeDotClass: 'bg-rose-400',
+      isFresh: false,
+      hoursAgo: 99999,
+    };
   }
 
   const diffMs = now.getTime() - date.getTime();

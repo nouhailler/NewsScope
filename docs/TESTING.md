@@ -2,41 +2,72 @@
 
 ## 1. Stratégie de Test
 
-La suite de tests automatisés de NewsScope Wire couvre l'intégrité de la chaîne de traitement de données :
-- **Tests unitaires de normalisation (`tests/gdeltNormalizer.test.ts`) :**
-  - Parsing des dates UTC GDELT au format `YYYYMMDDTHHMMSSZ`.
-  - Formatage relatif du temps en français (minutes, heures, jours).
-  - Détection canonique des domaines d'agences (`reuters.com`, `bloomberg.com`, `afp.com`).
-  - Détection et alerte des syndications tierces.
-  - Calcul déterministe des empreintes de hachage.
-  - Conversion complète d'un payload brut en objet `Dispatch`.
-- **Tests d'assainissement d'URL et stockage (`tests/storage.test.ts`) :**
-  - Nettoyage des paramètres d'attribution (`utm_*`, `fbclid`, `gclid`, `cmpid`, `taid`).
-  - Préservation des paramètres utiles de recherche (`q`, `page`).
-  - Tolérance aux URL malformées.
-  - Estimation de la taille de stockage IndexedDB.
-  - Initialisation de la liste des favoris avec un tableau strictement vide (`[]`).
-- **Tests de construction de requêtes & filtres (`tests/filters.test.ts`) :**
-  - Construction d'URL GDELT DOC 2.0 multi-agences.
+La suite de tests automatisés de NewsScope Wire garantit l'intégrité bout-en-bout de la chaîne de traitement sans aucune fabrication de données :
+
+- **Tests de gestion des dates & fraîcheur (`tests/dateUtils.test.ts` — 6 tests) :**
+  - Calcul déterministe des tranches de fraîcheur (< 1 heure, < 6 heures, Aujourd'hui, Hier, Archive).
+  - Étiquetage transparent et badge d'avertissement pour les données fictives (`isMock: true`).
+  - Gestion explicite des dates absentes sans repli vers `Date.now()`.
+  - Gestion explicite des chaînes de date invalides avec drapeau `hasInvalidDate: true`.
+
+- **Tests de construction de requêtes & filtres (`tests/filters.test.ts` — 4 tests) :**
+  - Construction d'URL GDELT DOC 2.0 multi-agences avec proxy `/api/gdelt`.
   - Exclusion sélective des agences désactivées par l'utilisateur.
-  - Injection des contraintes textuelles par mot-clé.
-  - Bascule du mode de tri (`DateDesc` vs `ToneDesc`).
+  - Injection des contraintes textuelles et opérateurs booléens.
+  - Bascule du mode de tri (`DateDesc` pour chronologique vs `ToneDesc` pour pertinence).
+
+- **Tests unitaires de normalisation & provenance (`tests/gdeltNormalizer.test.ts` — 13 tests) :**
+  - Extraction stricte du nom d'hôte (`extractHostname`) nettoyant protocoles, ports et préfixes `www.`.
+  - Validation des domaines légitimes et sous-domaines officiels (`isLegitimateAgencyDomain`).
+  - Tests négatifs de sécurité contre les attaques par spoofing (`reuters.com.example.org`, `fake-bloomberg.com`, etc.).
+  - Validation stricte des protocoles HTTP / HTTPS (`isValidHttpUrl`).
+  - Attribution canonique des agences officielles (Reuters, Bloomberg, AFP).
+  - Attribution transparente des domaines inconnus à `agency: 'other'` (sans défaut erroné vers AFP).
+  - Parsing des dates GDELT 14 caractères (`YYYYMMDDHHMMSS`).
+  - Détection et signalement des dates invalides.
+  - Hachage cryptographique FIPS 180-4 SHA-256 (64 caractères hexadécimaux avec vecteur de test officiel).
+  - Rejet des articles dépourvus d'URL HTTP valide.
+  - Absence de fabrication de métriques télémétriques non calculées (laissées `undefined`).
+
+- **Tests du connecteur temps réel GDELT (`tests/gdeltService.test.ts` — 7 tests) :**
+  - Ingestion d'une réponse HTTP 200 avec tableau d'articles.
+  - Traitement transparent de la limitation de débit HTTP 429 avec alerte et temps d'attente.
+  - Traitement sans plantage des réponses non-JSON ou corrompues.
+  - Traitement des réponses retournant un tableau d'articles vide.
+  - Traitement immédiat des dépassements de délai réseau (`AbortError` / timeout 8.5s).
+  - Verrou anti-concurrence empêchant les requêtes simultanées en vol (`isRequestInProgress`).
+  - Repli direct et diagnostic lorsque le proxy de développement renvoie HTTP 404.
+
+- **Tests d'assainissement d'URL & stockage (`tests/storage.test.ts` — 7 tests) :**
+  - Décapage des paramètres d'attribution publicitaire (`utm_*`, `fbclid`, `gclid`, `cmpid`, `taid`).
+  - Préservation des paramètres utiles de recherche (`q`, `id`, `page`).
+  - Tolérance aux URL malformées ou partielles sans exception non gérée.
+  - Calcul et formatage de la taille allouée dans le stockage local.
+  - Initialisation de la liste des favoris avec un tableau strictement vide (`[]`).
+  - Déduplication d'articles identiques portant des jetons de tracking différents.
+
+---
 
 ## 2. Exécution des Tests
 
 ```bash
-# Lancement de tous les tests avec tsx et le test runner natif de Node.js
+# Lancement de la suite complète avec tsx et le test runner natif Node.js
 npm test
 ```
 
-Résultats attendus :
+Résultats réels exécutés :
 ```text
-1..3
-# tests 19
-# suites 3
-# pass 19
+1..5
+# tests 37
+# suites 5
+# pass 37
 # fail 0
+# cancelled 0
+# skipped 0
+# todo 0
 ```
+
+---
 
 ## 3. Test de Faisabilité Réseau Direct
 

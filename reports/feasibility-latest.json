@@ -1,28 +1,28 @@
 {
   "metadata": {
-    "generated_at": "2026-10-18T12:22:53.785Z",
-    "node_version": "v22.23.3",
+    "generated_at": "2026-10-28T11:12:36.617Z",
+    "node_version": "v22.23.4",
     "api_endpoint": "https://api.gdeltproject.org/api/v2/doc/doc",
     "cooldown_between_requests_ms": 6000
   },
   "summary": {
     "total_tested": 3,
     "success_count": 0,
-    "rate_limited_count": 2,
-    "error_count": 1
+    "rate_limited_count": 3,
+    "error_count": 0
   },
   "probes": {
     "afp.com": {
       "domain": "afp.com",
       "query_url": "https://api.gdeltproject.org/api/v2/doc/doc?query=domainis:afp.com&mode=artlist&maxrecords=10&format=json",
-      "timestamp": "2026-10-18T12:22:53.786Z",
-      "http_status": null,
-      "status_text": null,
-      "response_time_ms": 12004,
+      "timestamp": "2026-10-28T11:12:36.618Z",
+      "http_status": 429,
+      "status_text": "Too Many Requests",
+      "response_time_ms": 11200,
       "success": false,
-      "error": "Délai d’attente dépassé (Timeout 12s)",
-      "rate_limited": false,
-      "content_type": null,
+      "error": "HTTP 429 Rate Limit Détecté: Please limit requests to one every 5 seconds or contact kalev.leetaru5@gmail.com for larger queries. All high-traffic users should switch to our ngrams dataset: https://blog.gdeltproject.org/using-the-new-web-ngrams-dataset-to-find-relevant-coverage/. For trend analysis, please see our daily newsletter briefings: https://blog.gdeltproject.org/announcing-our-new-daily-todays-trends-on-capitol-hill-todays-media-trends-newsletter-briefings/.",
+      "rate_limited": true,
+      "content_type": "unknown",
       "total_articles": 0,
       "duplicate_count": 0,
       "unique_titles": [],
@@ -36,10 +36,10 @@
     "reuters.com": {
       "domain": "reuters.com",
       "query_url": "https://api.gdeltproject.org/api/v2/doc/doc?query=domainis:reuters.com&mode=artlist&maxrecords=10&format=json",
-      "timestamp": "2026-10-18T12:23:11.792Z",
+      "timestamp": "2026-10-28T11:12:53.823Z",
       "http_status": 429,
       "status_text": "Too Many Requests",
-      "response_time_ms": 9678,
+      "response_time_ms": 9683,
       "success": false,
       "error": "HTTP 429 Rate Limit Détecté: Please limit requests to one every 5 seconds or contact kalev.leetaru5@gmail.com for larger queries. All high-traffic users should switch to our ngrams dataset: https://blog.gdeltproject.org/using-the-new-web-ngrams-dataset-to-find-relevant-coverage/. For trend analysis, please see our daily newsletter briefings: https://blog.gdeltproject.org/announcing-our-new-daily-todays-trends-on-capitol-hill-todays-media-trends-newsletter-briefings/.",
       "rate_limited": true,
@@ -57,10 +57,10 @@
     "bloomberg.com": {
       "domain": "bloomberg.com",
       "query_url": "https://api.gdeltproject.org/api/v2/doc/doc?query=domainis:bloomberg.com&mode=artlist&maxrecords=10&format=json",
-      "timestamp": "2026-10-18T12:23:27.473Z",
+      "timestamp": "2026-10-28T11:13:09.512Z",
       "http_status": 429,
       "status_text": "Too Many Requests",
-      "response_time_ms": 7988,
+      "response_time_ms": 9708,
       "success": false,
       "error": "HTTP 429 Rate Limit Détecté: Please limit requests to one every 5 seconds or contact kalev.leetaru5@gmail.com for larger queries. All high-traffic users should switch to our ngrams dataset: https://blog.gdeltproject.org/using-the-new-web-ngrams-dataset-to-find-relevant-coverage/. For trend analysis, please see our daily newsletter briefings: https://blog.gdeltproject.org/announcing-our-new-daily-todays-trends-on-capitol-hill-todays-media-trends-newsletter-briefings/.",
       "rate_limited": true,

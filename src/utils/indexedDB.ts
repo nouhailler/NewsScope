@@ -18,14 +18,12 @@ const STORE_FAVORITES = 'favorites';
 let dbPromise: Promise<IDBDatabase> | null = null;
 
 export function openNewsScopeDB(): Promise<IDBDatabase> {
+  if (typeof window === 'undefined' || !window.indexedDB) {
+    return Promise.reject(new Error('IndexedDB non disponible dans cet environnement'));
+  }
   if (dbPromise) return dbPromise;
 
   dbPromise = new Promise((resolve, reject) => {
-    if (typeof window === 'undefined' || !window.indexedDB) {
-      reject(new Error('IndexedDB non disponible dans cet environnement'));
-      return;
-    }
-
     const request = window.indexedDB.open(DB_NAME, DB_VERSION);
 
     request.onupgradeneeded = (event) => {
@@ -51,6 +49,7 @@ export function openNewsScopeDB(): Promise<IDBDatabase> {
 }
 
 export async function saveDispatchToIndexedDB(dispatch: Dispatch): Promise<void> {
+  if (typeof window === 'undefined' || !window.indexedDB) return;
   try {
     const db = await openNewsScopeDB();
     await new Promise<void>((resolve, reject) => {
@@ -65,6 +64,7 @@ export async function saveDispatchToIndexedDB(dispatch: Dispatch): Promise<void>
 }
 
 export async function getDispatchFromIndexedDB(id: string): Promise<Dispatch | null> {
+  if (typeof window === 'undefined' || !window.indexedDB) return null;
   try {
     const db = await openNewsScopeDB();
     return await new Promise<Dispatch | null>((resolve, reject) => {
@@ -79,7 +79,24 @@ export async function getDispatchFromIndexedDB(id: string): Promise<Dispatch | n
   }
 }
 
+export async function getAllCachedDispatches(): Promise<Dispatch[]> {
+  if (typeof window === 'undefined' || !window.indexedDB) return [];
+  try {
+    const db = await openNewsScopeDB();
+    return await new Promise<Dispatch[]>((resolve, reject) => {
+      const tx = db.transaction(STORE_DISPATCHES, 'readonly');
+      tx.onerror = () => reject(tx.error);
+      const req = tx.objectStore(STORE_DISPATCHES).getAll();
+      req.onsuccess = () => resolve(Array.isArray(req.result) ? req.result : []);
+    });
+  } catch (err) {
+    console.warn('[IndexedDB] Échec de récupération des dépêches en cache :', err);
+    return [];
+  }
+}
+
 export async function getAllIndexedDBFavorites(): Promise<string[]> {
+  if (typeof window === 'undefined' || !window.indexedDB) return [];
   try {
     const db = await openNewsScopeDB();
     return await new Promise<string[]>((resolve, reject) => {
@@ -95,6 +112,7 @@ export async function getAllIndexedDBFavorites(): Promise<string[]> {
 }
 
 export async function addFavoriteToIndexedDB(id: string, dispatch?: Dispatch): Promise<void> {
+  if (typeof window === 'undefined' || !window.indexedDB) return;
   try {
     const db = await openNewsScopeDB();
     const tx = db.transaction([STORE_FAVORITES, STORE_DISPATCHES], 'readwrite');

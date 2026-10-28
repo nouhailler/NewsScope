@@ -370,16 +370,18 @@ export const DetailView: React.FC<DetailViewProps> = ({
           <div className="p-2.5 rounded bg-[#171f33] space-y-1 border border-[#222a3d]">
             <span className="text-[10px] text-[#bdc8d1] uppercase block">Domaine & Fiabilité</span>
             <span className="text-xs sm:text-sm font-semibold text-[#8ed5ff]">
-              {dispatch.agency === 'reuters' ? 'reuters.com' : 'bloomberg.com'}
+              {dispatch.thirdPartySource || (dispatch.agency === 'reuters' ? 'reuters.com' : dispatch.agency === 'bloomberg' ? 'bloomberg.com' : 'afp.com')}
             </span>
             <span className="text-[10px] text-[#38bdf8] block">
-              Score Confiance : {dispatch.confidenceScore}%
+              {dispatch.confidenceScore !== undefined
+                ? `Score Confiance : ${dispatch.confidenceScore}%`
+                : 'Score : Non fourni par GDELT artlist'}
             </span>
           </div>
           <div className="p-2.5 rounded bg-[#171f33] space-y-1 border border-[#222a3d]">
             <span className="text-[10px] text-[#bdc8d1] uppercase block">Langue Source</span>
             <span className="text-xs sm:text-sm font-semibold text-[#dae2fd]">
-              {dispatch.language}
+              {dispatch.language || 'Non spécifié'}
             </span>
             <span className="text-[10px] text-[#bdc8d1] block">
               Détecté • Trad. auto non requise
@@ -388,10 +390,12 @@ export const DetailView: React.FC<DetailViewProps> = ({
           <div className="p-2.5 rounded bg-[#171f33] space-y-1 border border-[#222a3d]">
             <span className="text-[10px] text-[#bdc8d1] uppercase block">Indice Sentiment</span>
             <span className="text-xs sm:text-sm font-semibold text-[#ffdbca]">
-              {dispatch.sentimentScore > 0 ? `+${dispatch.sentimentScore}` : dispatch.sentimentScore}
+              {dispatch.sentimentScore !== undefined
+                ? (dispatch.sentimentScore > 0 ? `+${dispatch.sentimentScore}` : String(dispatch.sentimentScore))
+                : 'Non mesuré'}
             </span>
             <span className="text-[10px] text-[#bdc8d1] block truncate">
-              {dispatch.sentimentLabel}
+              {dispatch.sentimentLabel || 'Indisponible en mode artlist'}
             </span>
           </div>
         </div>
@@ -401,13 +405,15 @@ export const DetailView: React.FC<DetailViewProps> = ({
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-[18px] text-[#38bdf8]">speed</span>
             <span className="font-['Geist'] text-xs uppercase font-semibold text-[#dae2fd]">
-              Vélocité médiatique détectée
+              Vélocité médiatique
             </span>
           </div>
           <div className="flex items-center gap-1.5 font-mono text-xs">
-            <span className="text-[#38bdf8] font-bold">{dispatch.mediaVelocity} reprises</span>
+            <span className="text-[#38bdf8] font-bold">
+              {dispatch.mediaVelocity !== undefined ? `${dispatch.mediaVelocity} reprises` : 'Indisponible'}
+            </span>
             <span className="text-[#bdc8d1] hidden sm:inline">
-              (Cluster d'amplification d'agence)
+              {dispatch.mediaVelocity !== undefined ? '(Cluster d’amplification)' : '(Nécessite le tableau GKG complet)'}
             </span>
           </div>
         </div>

@@ -51,4 +51,15 @@ describe('Storage & URL Sanitization Tests', () => {
     assert.ok(Array.isArray(favs));
     assert.strictEqual(favs.length, 0);
   });
+
+  test('sanitizeUrl handles deduplication of same article with different tracking tokens', () => {
+    const urlFromTwitter = 'https://www.reuters.com/markets/deals?utm_source=twitter&utm_medium=social';
+    const urlFromNewsletter = 'https://www.reuters.com/markets/deals?utm_source=newsletter&utm_campaign=morning';
+
+    const clean1 = sanitizeUrl(urlFromTwitter).cleanedUrl;
+    const clean2 = sanitizeUrl(urlFromNewsletter).cleanedUrl;
+
+    assert.strictEqual(clean1, clean2);
+    assert.strictEqual(clean1, 'https://www.reuters.com/markets/deals');
+  });
 });

@@ -436,33 +436,75 @@ export const FluxDirectView: React.FC<FluxDirectViewProps> = ({
         </span>
       </div>
 
-      {/* 4. Live Feed Dispatch Cards */}
-      {filteredDispatches.length === 0 ? (
+      {/* Permanent Banner in Demo Mode */}
+      {dataMode === 'demo' && (
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-500/15 border border-amber-400/40 text-amber-200 shadow-sm">
+          <span className="material-symbols-outlined text-amber-400 text-[22px] shrink-0">
+            science
+          </span>
+          <div className="flex flex-col text-xs leading-relaxed">
+            <strong className="text-amber-300 font-['Geist'] uppercase tracking-wider text-[11px]">
+              Mode Démonstration Actif • Données Synthétiques Fictives
+            </strong>
+            <span className="text-[#dae2fd]/85">
+              Ces dépêches sont générées à des fins de test ergonomique. Elles ne représentent pas les dépêches reçues en direct.
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* 4. Live Feed Dispatch Cards or Explicit State */}
+      {liveState.isLoading ? (
+        <div className="bg-[#131b2e] rounded-xl p-10 flex flex-col items-center justify-center text-center border border-[#222a3d] space-y-3">
+          <span className="material-symbols-outlined text-[42px] text-[#38bdf8] animate-spin">
+            progress_activity
+          </span>
+          <p className="font-['Newsreader'] text-lg text-[#dae2fd] font-semibold">
+            Interrogation de GDELT DOC 2.0 en cours...
+          </p>
+          <p className="font-['Source_Serif_4'] text-xs text-[#bdc8d1] max-w-sm">
+            Requête réseau vers le graphe mondial en cours. Traitement anti-traceurs et déduplication en direct.
+          </p>
+        </div>
+      ) : filteredDispatches.length === 0 ? (
         <div className="bg-[#131b2e] rounded-xl p-8 flex flex-col items-center justify-center text-center border border-[#222a3d]">
           <span className="material-symbols-outlined text-[48px] text-[#87929a] mb-2">
-            inbox
+            {isOffline ? 'cloud_off' : liveState.rateLimited ? 'timer' : liveState.lastError ? 'error' : 'inbox'}
           </span>
           <p className="font-['Newsreader'] text-lg text-[#dae2fd] font-semibold mb-1">
-            Aucune dépêche trouvée
+            {isOffline
+              ? 'Aucune dépêche en cache local'
+              : liveState.rateLimited
+              ? 'Limitation de débit GDELT active (HTTP 429)'
+              : liveState.lastError
+              ? 'Erreur lors de la requête GDELT'
+              : 'Aucune dépêche trouvée'}
           </p>
-          <p className="font-['Source_Serif_4'] text-xs text-[#bdc8d1] max-w-sm mb-4">
-            {dataMode === 'live'
-              ? 'Aucun résultat renvoyé par GDELT pour ces critères, ou limitation de débit en cours.'
-              : 'Aucune dépêche ne correspond à votre filtre de recherche.'}
+          <p className="font-['Source_Serif_4'] text-xs text-[#bdc8d1] max-w-sm mb-4 leading-relaxed">
+            {isOffline
+              ? 'Le cache local IndexedDB est actuellement vide. Connectez-vous à Internet et actualisez pour enregistrer des articles hors-ligne.'
+              : liveState.rateLimited
+              ? (liveState.lastError || 'GDELT impose un délai strict d’une requête par tranche de 5 secondes par IP. Patientez quelques secondes avant de relancer.')
+              : liveState.lastError
+              ? liveState.lastError
+              : dataMode === 'live'
+              ? 'Aucun résultat renvoyé par l’API GDELT pour les filtres actifs.'
+              : 'Aucune dépêche de démonstration ne correspond à votre recherche.'}
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap justify-center">
             <button
               onClick={onRefresh}
-              className="px-3 py-1.5 rounded-lg bg-[#38bdf8] text-[#00354a] font-['Geist'] text-xs font-semibold"
+              disabled={isRefreshing || !!liveState.rateLimited}
+              className="px-3.5 py-1.5 rounded-lg bg-[#38bdf8] text-[#00354a] font-['Geist'] text-xs font-semibold hover:bg-[#8ed5ff] transition-colors disabled:opacity-50"
             >
-              Relancer la requête
+              {liveState.rateLimited ? 'Cooldown en cours...' : 'Relancer la requête'}
             </button>
             {dataMode === 'live' && (
               <button
                 onClick={onToggleDataMode}
-                className="px-3 py-1.5 rounded-lg bg-[#222a3d] text-[#dae2fd] font-['Geist'] text-xs font-semibold"
+                className="px-3.5 py-1.5 rounded-lg bg-[#222a3d] text-[#dae2fd] font-['Geist'] text-xs font-semibold hover:bg-[#31394d] transition-colors"
               >
-                Afficher le jeu démo
+                Basculer en Mode Démo
               </button>
             )}
           </div>

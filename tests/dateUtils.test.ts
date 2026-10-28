@@ -46,4 +46,18 @@ describe('Date & Freshness Utility Tests', () => {
     assert.ok(info.dayLabel.includes('2025'));
     assert.strictEqual(info.timeLabel, '14:02:44 UTC');
   });
+
+  test('handles missing or empty date explicitly without defaulting to current time', () => {
+    const info = getFreshnessInfo('');
+    assert.strictEqual(info.isFresh, false);
+    assert.strictEqual(info.dayLabel, 'Date non fournie');
+    assert.ok(info.freshnessBadgeLabel.includes('INDISPONIBLE'));
+  });
+
+  test('handles invalid date strings explicitly without defaulting to current time', () => {
+    const info = getFreshnessInfo('not-a-date');
+    assert.strictEqual(info.isFresh, false);
+    assert.strictEqual(info.dayLabel, 'Date invalide');
+    assert.ok(info.freshnessBadgeLabel.includes('INVALIDE'));
+  });
 });

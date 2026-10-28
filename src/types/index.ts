@@ -1,4 +1,4 @@
-export type AgencyId = 'reuters' | 'bloomberg' | 'afp' | 'aie';
+export type AgencyId = 'reuters' | 'bloomberg' | 'afp' | 'aie' | 'other';
 
 export interface Dispatch {
   id: string;
@@ -12,6 +12,7 @@ export interface Dispatch {
   thirdPartySource?: string;
   thirdPartyWarning?: string;
   timestamp: string;
+  hasInvalidDate?: boolean;
   timeAgo: string;
   utcTime: string;
   title: string;
@@ -22,22 +23,23 @@ export interface Dispatch {
   category: string;
   thematicTags: string[];
   sha256: string;
+  contentHash?: string;
   canonicalUrl: string;
   cleanedUrl: string;
   removedTrackersCount: number;
   gkgId: string;
-  confidenceScore: number;
-  sentimentScore: number;
-  sentimentLabel: string;
-  mediaVelocity: number;
+  confidenceScore?: number;
+  sentimentScore?: number;
+  sentimentLabel?: string;
+  mediaVelocity?: number;
   mediaImage?: string;
   mediaCaption?: string;
   mediaRawRes?: string;
   analystNote?: string;
   offlineAvailable: boolean;
   language: 'fra' | 'eng';
-  packetSize: string;
-  wordCount: number;
+  packetSize?: string;
+  wordCount?: number;
   marketMetric?: {
     label: string;
     value: string;

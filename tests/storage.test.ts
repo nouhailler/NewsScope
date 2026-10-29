@@ -4,6 +4,8 @@ import {
   sanitizeUrl,
   calculateStorageSize,
   getStoredFavorites,
+  saveStoredFavorites,
+  toggleFavoriteId,
 } from '../src/utils/storage';
 import { Dispatch } from '../src/types';
 
@@ -61,5 +63,43 @@ describe('Storage & URL Sanitization Tests', () => {
 
     assert.strictEqual(clean1, clean2);
     assert.strictEqual(clean1, 'https://www.reuters.com/markets/deals');
+  });
+
+  test('toggleFavoriteId maintains favorite list integrity and deduplication', () => {
+    const memoryStore: Record<string, string> = {};
+    const originalWindow = (globalThis as any).window;
+
+    (globalThis as any).window = {
+      localStorage: {
+        getItem: (k: string) => memoryStore[k] || null,
+        setItem: (k: string, v: string) => { memoryStore[k] = v; },
+        removeItem: (k: string) => { delete memoryStore[k]; },
+      },
+    };
+
+    try {
+      // Start clean
+      saveStoredFavorites([]);
+      assert.strictEqual(getStoredFavorites().length, 0);
+
+      // 1. Add item
+      const afterAdd = toggleFavoriteId('item_1');
+      assert.ok(afterAdd.includes('item_1'));
+      assert.strictEqual(afterAdd.length, 1);
+
+      // 2. Add second item
+      const afterAdd2 = toggleFavoriteId('item_2');
+      assert.ok(afterAdd2.includes('item_1'));
+      assert.ok(afterAdd2.includes('item_2'));
+      assert.strictEqual(afterAdd2.length, 2);
+
+      // 3. Remove first item
+      const afterRemove = toggleFavoriteId('item_1');
+      assert.strictEqual(afterRemove.includes('item_1'), false);
+      assert.ok(afterRemove.includes('item_2'));
+      assert.strictEqual(afterRemove.length, 1);
+    } finally {
+      (globalThis as any).window = originalWindow;
+    }
   });
 });

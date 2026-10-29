@@ -9,7 +9,9 @@ import { INITIAL_DISPATCHES } from './data/mockDispatches';
 import {
   getStoredFavorites,
   saveStoredFavorites,
+  toggleFavorite,
   toggleFavoriteId,
+  purgeAllFavorites,
   getOfflineMode,
   setOfflineMode,
   getDataMode,

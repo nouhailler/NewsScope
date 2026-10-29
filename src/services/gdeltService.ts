@@ -304,13 +304,13 @@ export async function fetchLiveGdeltDispatches(
     const isEmpty = normalized.length === 0;
 
     return {
-      success: !isEmpty,
+      success: true,
       dispatches: normalized,
       httpStatus: res.status,
       latencyMs,
       rateLimited: false,
       errorCategory: isEmpty ? 'EMPTY' : null,
-      error: isEmpty ? 'Aucun article trouvé pour les critères sélectionnés.' : null,
+      error: null,
       totalArticlesCount: normalized.length,
       endpointUsed,
       isProxy,

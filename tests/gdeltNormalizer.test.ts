@@ -1,5 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import {
   parseGdeltDate,
   formatRelativeTime,
@@ -97,16 +98,31 @@ describe('GDELT Normalizer & Provenance Tests', () => {
     assert.strictEqual(res2.isValid, false);
   });
 
-  test('calculateSha256 computes authentic 64-hex cryptographic hash', () => {
-    // Test vector: SHA-256 of empty string is e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+  test('calculateSha256 computes authentic 64-hex cryptographic hash across standard vectors and Unicode', () => {
+    // 1. Vecteur standard officiel : chaîne vide
     const emptyHash = calculateSha256('');
     assert.strictEqual(emptyHash, 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855');
 
-    // Deterministic test
-    const h1 = calculateSha256('https://reuters.com/news::Titre A');
-    const h2 = calculateSha256('https://reuters.com/news::Titre A');
-    assert.strictEqual(h1, h2);
-    assert.strictEqual(h1.length, 64);
+    // 2. Vecteur standard officiel : "abc"
+    const abcHash = calculateSha256('abc');
+    assert.strictEqual(abcHash, 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
+
+    // 3. Titre français accentué UTF-8
+    const frenchTitle = "BCE : Christine Lagarde confirme l'accélération des baisses de taux d'intérêt à Francfort-sur-le-Main";
+    const frenchHash = calculateSha256(frenchTitle);
+    // Calcul standard via node:crypto pour référence
+    const expectedFrench = crypto.createHash('sha256').update(frenchTitle, 'utf8').digest('hex');
+    assert.strictEqual(frenchHash, expectedFrench);
+
+    // 4. Chaîne Unicode complexe (emojis, idéogrammes japonais)
+    const unicodeString = "NewsScope Wire 🌍 — 東京・パリ・ワシントン [DIRECT]";
+    const unicodeHash = calculateSha256(unicodeString);
+    const expectedUnicode = crypto.createHash('sha256').update(unicodeString, 'utf8').digest('hex');
+    assert.strictEqual(unicodeHash, expectedUnicode);
+
+    // 5. Longueur et format hexadécimal strict
+    assert.strictEqual(frenchHash.length, 64);
+    assert.match(frenchHash, /^[0-9a-f]{64}$/);
   });
 
   test('normalizeGdeltArticle rejects articles without valid URL', () => {
@@ -118,7 +134,7 @@ describe('GDELT Normalizer & Provenance Tests', () => {
     assert.strictEqual(res, null);
   });
 
-  test('normalizeGdeltArticle normalizes valid article without fabricating uncalculated metrics', () => {
+  test('normalizeGdeltArticle normalizes valid article, preserves sourceDomain, and distinguishes sha256 from id', () => {
     const raw = {
       url: 'https://www.reuters.com/markets/rates?utm_source=twitter&fbclid=123',
       title: 'BCE : maintien des taux d’intérêt',
@@ -131,10 +147,16 @@ describe('GDELT Normalizer & Provenance Tests', () => {
     assert.ok(dispatch !== null);
     assert.strictEqual(dispatch.agency, 'reuters');
     assert.strictEqual(dispatch.isMock, false);
+    assert.strictEqual(dispatch.sourceDomain, 'reuters.com');
     assert.strictEqual(dispatch.title, 'BCE : maintien des taux d’intérêt');
     assert.strictEqual(dispatch.cleanedUrl, 'https://www.reuters.com/markets/rates');
     assert.strictEqual(dispatch.removedTrackersCount, 2);
     assert.strictEqual(dispatch.isCanonical, true);
+    // Distinct cryptographic fingerprint vs stable application ID
+    assert.notStrictEqual(dispatch.sha256, dispatch.id);
+    assert.ok(dispatch.id.startsWith('gdelt_20261028T100000Z_'));
+    assert.strictEqual(dispatch.sha256.length, 64);
+    assert.match(dispatch.sha256, /^[0-9a-f]{64}$/);
     // Uncalculated metrics must be undefined, not fabricated
     assert.strictEqual(dispatch.confidenceScore, undefined);
     assert.strictEqual(dispatch.sentimentScore, undefined);

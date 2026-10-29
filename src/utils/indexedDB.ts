@@ -130,6 +130,7 @@ export async function addFavoriteToIndexedDB(id: string, dispatch?: Dispatch): P
 }
 
 export async function removeFavoriteFromIndexedDB(id: string): Promise<void> {
+  if (typeof window === 'undefined' || !window.indexedDB) return;
   try {
     const db = await openNewsScopeDB();
     const tx = db.transaction(STORE_FAVORITES, 'readwrite');
@@ -144,6 +145,7 @@ export async function removeFavoriteFromIndexedDB(id: string): Promise<void> {
 }
 
 export async function clearAllIndexedDB(): Promise<void> {
+  if (typeof window === 'undefined' || !window.indexedDB) return;
   try {
     const db = await openNewsScopeDB();
     const tx = db.transaction([STORE_FAVORITES, STORE_DISPATCHES], 'readwrite');

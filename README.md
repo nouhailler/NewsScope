@@ -8,14 +8,16 @@ NewsScope Wire est un téléscripteur d'actualité financière et géopolitique 
 
 - **Connecteur Réel GDELT DOC 2.0 :** Interrogation de l'API avec verrou anti-concurrence, temporisation minimale (cooldown 5 secondes), gestion explicite des codes HTTP (200, 429 Too Many Requests, 404 proxy fallback) et protection contre les timeouts (8.5s via `AbortController`).
 - **Séparation Stricte des Modes :** 
-  - **Flux Direct :** Affiche uniquement les dépêches reçues en direct (aucun repli silencieux vers le mock).
+  - **Flux Direct :** Affiche uniquement les dépêches reçues en direct (aucun repli silencieux vers le mock dans la liste ou dans la vue détail).
   - **Mode Démonstration :** Affiche uniquement le jeu de données fictif avec bandeau d'avertissement permanent.
   - **Mode Hors-Ligne :** Affiche uniquement les articles réellement archivés dans la base locale `NewsScope_v1`.
 - **Hygiène & Anti-Tracking :** Décapage automatique de tous les paramètres d'attribution publicitaire (`utm_*`, `fbclid`, `gclid`, `cmpid`, `taid`).
 - **Provenance & Attribution Stricte :** Détection stricte des noms d'hôte (`hostname`), validation contre les domaines spoofés (`reuters.com.example.org`), classement des domaines tiers en `other` (sans défaut erroné vers AFP) et étiquetage systématique des mentions tierces.
+- **Hachage Cryptographique FIPS 180-4 :** Calcul d'empreinte SHA-256 standard opérant sur des octets UTF-8 pour supporter l'Unicode et les titres accentués.
 - **Stockage Souverain IndexedDB :** Base locale `NewsScope_v1` (`dispatches` & `favorites`). Zéro cookie, zéro télémétrie tierce, initialisation à vide (`[]`).
 - **Indicateur de Date, Heure & Fraîcheur :** Horodatage UTC exact, jour de parution et calcul de fraîcheur (<1h, <6h, Aujourd'hui, Hier, Archive, Démo). Gestion transparente des dates absentes ou invalides.
 - **PWA & Résilience Hors-Ligne :** Manifeste Web, Service Worker avec stratégie Cache-First pour les assets et Network-First pour l'API, installable sur ordinateur et mobile.
+- **Serveur Production & Proxy Inclus (`server.ts`) :** Serveur Express prêt au déploiement avec proxy `/api/gdelt`, cache mémoire (TTL 60s), en-têtes CORS et distribution statique.
 - **Export & Portabilité :** Export complet des favoris en JSON RFC 8259 et rapport d'audit d'architecture en Markdown.
 
 ---
@@ -28,6 +30,10 @@ npm ci
 
 # Lancement du serveur local de développement
 npm run dev
+
+# Ou lancement du serveur de production full-stack
+npm run build
+npm start
 ```
 
 L'application est disponible sur `http://localhost:3000`.
@@ -37,7 +43,7 @@ L'application est disponible sur `http://localhost:3000`.
 ## 🧪 Tests & Qualité
 
 ```bash
-# Exécution de la suite complète de 37 tests automatisés (5 suites)
+# Exécution de la suite complète de 45 tests automatisés (6 suites)
 npm test
 
 # Validation stricte des types TypeScript
